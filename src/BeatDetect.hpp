@@ -36,38 +36,40 @@
 
 class BeatDetect
 {
-	public:
-		float treb ;
-		float mid ;
-		float bass ;
-		float vol_old ;
-		float beat_sensitivity;
-		float treb_att ;
-		float mid_att ;
-		float bass_att ;
-		float vol;
+public:
+    float treb;
+    float mid;
+    float bass;
+    float vol_old;
+    float beat_sensitivity;
+    float treb_att;
+    float mid_att;
+    float bass_att;
+    float vol;
 
-		PCM *pcm;
+    PCM *pcm;
 
-		/** Methods */
-		BeatDetect(PCM *pcm);
-		~BeatDetect();
-		void initBeatDetect();
-		void reset();
-		void detectFromSamples();
-		void getBeatVals ( float *vdataL, float *vdataR );
-	private:
-		/** Vars */
-		float beat_buffer[32][80],
-		beat_instant[32],
-		beat_history[32];
-		float beat_val[32],
-		beat_att[32],
-		beat_variance[32];
-		int beat_buffer_pos;
-		float vol_buffer[80],
-		vol_instant,
-		vol_history;
+    /** Methods */
+    explicit BeatDetect(PCM *pcm);
+
+    ~BeatDetect();
+
+    void detectFromSamples();
+
+    void getBeatVals(float *vdataL, float *vdataR);
+
+private:
+    /** Vars */
+    float beat_buffer[32][80];
+    float beat_instant[32];
+    float beat_history[32];
+    float beat_val[32];
+    float beat_att[32];
+    float beat_variance[32];
+    int beat_buffer_pos;
+    float vol_buffer[80];
+    float vol_instant;
+    float vol_history;
 };
 
 #endif /** !_BEAT_DETECT_H */

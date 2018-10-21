@@ -17,7 +17,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  * See 'LICENSE.txt' included within this release
  *
- */
+*/
+
 /**
  * $Id$
  *
@@ -31,9 +32,10 @@
 
 //#include "dlldefs.h"
 
-class PCM {
+class PCM
+{
 public:
-    float **PCMd;
+    float *PCMd[2];
     int start;
 
     /** Use wave smoothing */
@@ -52,19 +54,21 @@ public:
     float vdataR[512];
 
     static int maxsamples;
+
     PCM();
+
     ~PCM();
+
     void initPCM(int maxsamples);
+
     void addPCMfloat(const float *PCMdata, int samples);
-    void addPCM16(short [2][512]);
-    void addPCM16Data(const short* pcm_data, short samples);
-    void addPCM8( unsigned char [2][1024]);
-	void addPCM8_512( const unsigned char [2][512]);
+    void addPCMfloat_mono(const float *PCMdata, int samples);
+    void addPCM16Data(const short *pcm_data, short samples);
+    void addPCM16Data_mono(const short *pcm_data, short samples);
+
     void getPCM(float *data, int samples, int channel, int freq, float smoothing, int derive);
-    void freePCM();
-    int getPCMnew(float *PCMdata, int channel, int freq, float smoothing, int derive,int reset);
 
-
-  };
+    int getPCMnew(float *PCMdata, int channel, float smoothing, int derive, int reset);
+};
 
 #endif /** !_PCM_H */
