@@ -826,11 +826,16 @@ public:
 
 FILE *device = 0;
 
+void setOutputDevice(FILE *f)
+{
+    device = f;
+}
+
 void drawPiano(PatternContext &ctx, Image &image)
 {
     if (device == 0)
     {
-        device = fopen("/home/matthew/Projects/MeltonJohn/cmake-build-debug/fifo", "a");
+        device = stdout;
         clearPiano();
     }
     for (int i = 0; i < IMAGE_SIZE; i++)
@@ -939,7 +944,7 @@ void renderFrame(BeatDetect *beatDetect, float current_time)
             return;
         if (patterns.size() == 1)
             pattern_index = 0;
-        else if (true || patterns.size() == 2)
+        else if (patterns.size() == 2)
             pattern_index++;
         else
             pattern_index = pattern_index + 1 + randomInt(patterns.size() - 1);

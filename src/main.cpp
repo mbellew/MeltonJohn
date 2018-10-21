@@ -32,8 +32,21 @@ inline float time_in_seconds()
 }
 
 
+void setOutputDevice(FILE *);
+
 int main(int argc, char *argv[])
 {
+    if (argc > 1)
+    {
+        FILE *f = fopen(argv[1] ,"a");
+        if (nullptr == f)
+        {
+            fprintf(stderr, "failed to open device: %s\n", argv[1]);
+            exit(1);
+        }
+        setOutputDevice(f);
+    }
+
     // handle SIGTERM to make running as a service work better
     struct sigaction action = {nullptr};
     memset(&action, 0, sizeof(struct sigaction));
