@@ -61,8 +61,8 @@ int main(int argc, char *argv[])
     static const pa_sample_spec ss =
     {
         .format = PA_SAMPLE_S16LE, // PA_SAMPLE_FLOAT32,
-        .rate = 48000,
-        .channels = 1
+        .rate = 44100,
+        .channels = 2
     };
 
     int error;
