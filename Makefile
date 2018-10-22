@@ -1,9 +1,9 @@
 
 debug:
-	g++ -ggdb -O0 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
+	g++ -std=c++11 -ggdb -O0 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
 
 build:
-	g++ -ggdb src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
+	g++ -std=c++11 -ggdb src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
 
 run:
 	./MeltonJohn | python3 viewer.py
