@@ -11,6 +11,6 @@ If you succeed in building and running the program but it doesn't seem to be rea
 
 1) Open the "PulseAudio Volume Control" application (pavucontrol from command line)
 
-2) Select the "Recording" tab.  You should see your program listed as "./mj: record from:"
+2) Select the "Recording" tab.  You should see your program listed as "./MeltonJohn: record from:"
 
 3) Choose the audio source you want the visualizer to listen to e.g. "Monitor of Built-in Audio Analog Stereo"
