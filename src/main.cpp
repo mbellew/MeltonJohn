@@ -14,20 +14,21 @@
 
 volatile sig_atomic_t terminate = 0;
 
+
 void term(int signum)
 {
     terminate = 1;
 }
 
 
-void renderFrame(BeatDetect *beatDetect, float current_time);
+void renderFrame(BeatDetect *beatDetect, double current_time);
 
 
-inline float time_in_seconds()
+inline double time_in_seconds()
 {
     struct timespec current_time = {0,0};
     clock_gettime(CLOCK_MONOTONIC_RAW, &current_time);
-    float time = current_time.tv_sec + current_time.tv_nsec / 1000000000.0f;
+    double time = current_time.tv_sec + current_time.tv_nsec / 1000000000.0;
     return time;
 }
 
@@ -75,9 +76,9 @@ int main(int argc, char *argv[])
     }
 
 
-    float framerate_time = time_in_seconds();
-    float prev_frame_time = framerate_time;
-    float frame_duration = 1.0f / 30.0f;
+    double framerate_time = time_in_seconds();
+    double prev_frame_time = framerate_time;
+    double frame_duration = 1.0f / 30.0f;
     int framerate_count = 0;
 
     const unsigned SAMPLES = 512;
@@ -86,7 +87,7 @@ int main(int argc, char *argv[])
 
     while (!terminate)
     {
-        float time;
+        double time;
         do
         {
             if (pa_simple_read(s, data, sizeof(data), &error) < 0)
