@@ -35,6 +35,9 @@ inline double time_in_seconds()
 
 void setOutputDevice(FILE *);
 
+
+// TODO rewrite to use async api instead of pa_simple_new
+
 int main(int argc, char *argv[])
 {
     if (argc > 1)
@@ -77,8 +80,9 @@ int main(int argc, char *argv[])
 
 
     double framerate_time = time_in_seconds();
-    double prev_frame_time = framerate_time;
+    double start_time = framerate_time;
     double frame_duration = 1.0f / 30.0f;
+    double next_frame_time = start_time + frame_duration;
     int framerate_count = 0;
 
     const unsigned SAMPLES = 512;
@@ -111,7 +115,8 @@ int main(int argc, char *argv[])
                     pcm.addPCM16Data((short *)data, SAMPLES);
             }
             time = time_in_seconds();
-        } while ( (time-prev_frame_time) < frame_duration);
+        } while ( time < next_frame_time);
+        next_frame_time += frame_duration;
 
         beatDetect.detectFromSamples();
         renderFrame(&beatDetect, time);
