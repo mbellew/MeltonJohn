@@ -1,0 +1,13 @@
+[Unit]
+Description=Melton John (reset button)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/
+ExecStart=/usr/local/bin/RESET
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

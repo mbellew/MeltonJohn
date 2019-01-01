@@ -1,0 +1,13 @@
+[Unit]
+Description=Melton John (visualizer)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/
+ExecStart=/usr/local/bin/BRPL
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
