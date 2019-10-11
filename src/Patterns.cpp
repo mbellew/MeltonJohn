@@ -950,7 +950,7 @@ void renderFrame(BeatDetect *beatDetect, double current_time)
         pattern_index = pattern_index % (unsigned)patterns.size();
         currentPattern = patterns.at(pattern_index);
         currentPattern->setup(context);
-        fprintf(stdout, "%s\n", currentPattern->name().c_str());
+        fprintf(stderr, "%s\n", currentPattern->name().c_str());
         if (device && device != stdout)
             fprintf(device, "%s\n", currentPattern->name().c_str());
         preset_start_time = current_time;
@@ -1636,7 +1636,7 @@ public:
         } else
         {
             int index = randomInt(paletteCount);
-            fprintf(stderr, "palette %d\n", index);
+            //fprintf(stderr, "palette %d\n", index);
             PaletteGenerator *p = palettes[index];
             // c1 = Color(0.0, 0.0, 1.0);    /Color/ blue
             // c2 = Color(1.0, 1.0, 0.0);    // yellow
@@ -1665,7 +1665,7 @@ public:
 
         ctx.cx = ((posB + posT) / 2.0) / (IMAGE_SIZE - 1);
 
-        fprintf(stderr, "[%0.3f %0.3f]\n", bass, treb);
+        //fprintf(stderr, "[%0.3f %0.3f]\n", bass, treb);
         //fprintf(stderr, "(%f %f)\n", posT, posB);
     }
 
