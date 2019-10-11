@@ -72,7 +72,8 @@ int main(int argc, char *argv[])
     int error;
     /* Create the recording stream */
     pa_simple *s = nullptr;
-    if (!(s = pa_simple_new(nullptr, argv[0], PA_STREAM_RECORD, "alsa_input.usb-0c76_USB_PnP_Audio_Device-00.multichannel-input", "record", &ss, nullptr, nullptr, &error)))
+    if (!(s = pa_simple_new(nullptr, argv[0], PA_STREAM_RECORD, "alsa_input.usb-0c76_USB_PnP_Audio_Device-00.analog-stereo", "record", &ss, nullptr, nullptr, &error)))
+    //if (!(s = pa_simple_new(nullptr, argv[0], PA_STREAM_RECORD, "alsa_input.usb-0c76_USB_PnP_Audio_Device-00.multichannel-input", "record", &ss, nullptr, nullptr, &error)))
     {
         fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", pa_strerror(error));
         exit(1);
