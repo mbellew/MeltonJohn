@@ -31,6 +31,44 @@
 #include <cmath>
 #include "BeatDetect.hpp"
 
+
+// ONE SECOND OF FAKE DATA
+const float k = 1;
+const size_t backgroundMusicSize = 30;
+float backgroundMusic[backgroundMusicSize][3]
+{
+    {k,0,0},
+    {k,0,0},
+    {k,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,k,0},
+    {0,k,0},
+    {0,k,0},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0},
+    {k,0,0},
+    {k,0,0},
+    {k,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,k,k},
+    {0,k,k},
+    {0,k,k},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0},
+    {0,0,0}
+};
+
+
 BeatDetect::BeatDetect(PCM *pcm)
 {
     int x, y;
@@ -59,7 +97,11 @@ BeatDetect::BeatDetect(PCM *pcm)
             this->beat_buffer[x][y] = 0;
         }
     }
+    this->bg_fadein = 0.0;
+    this->bg_pos = 0;
+    this->bg_history = 0.1;
 
+    // output variables
     this->treb = 0;
     this->mid = 0;
     this->bass = 0;
@@ -77,12 +119,20 @@ BeatDetect::~BeatDetect() = default;
 
 void BeatDetect::detectFromSamples()
 {
-    vol_old = vol;
-    bass = 0;
-    mid = 0;
-    treb = 0;
+    float vol_prev = vol;
+
+    // these strictly output variables make sure we aren't using them to compute new values
+    this->vol_old = 0;
+    this->vol = 0;
+    this->treb = 0;
+    this->bass = 0;
+    this->mid = 0;
+    this->treb_att = 0;
+    this->mid_att = 0;
+    this->bass_att = 0;
 
     getBeatVals(pcm->pcmdataL, pcm->pcmdataR);
+    this->vol_old = vol_prev;
 }
 
 
@@ -115,14 +165,17 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
     vol_buffer[beat_buffer_pos] = vol_instant;
     vol_history += (vol_instant) * .0125;
 
+    bass = (beat_instant[0]) / (1.5f * beat_history[0]);
+
+    temp2 = 0;
     mid = 0;
     for (x = 1; x < 10; x++)
     {
         mid += (beat_instant[x]);
         temp2 += (beat_history[x]);
     }
-
     mid = mid / (1.5f * temp2);
+
     temp2 = 0;
     treb = 0;
     for (x = 10; x < 16; x++)
@@ -131,8 +184,8 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
         temp2 += (beat_history[x]);
     }
     treb = treb / (1.5f * temp2);
+
     vol = vol_instant / (1.5f * vol_history);
-    bass = (beat_instant[0]) / (1.5f * beat_history[0]);
 
     if (std::isnan(treb))
     {
@@ -146,6 +199,25 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
     {
         bass = 0.0;
     }
+
+    // if volume is very low, the add in background
+    if (vol_history < 0.00001)
+        bg_fadein = fmin(1,bg_fadein + 0.01);
+    else if (vol_history > 0.00002)
+        bg_fadein = fmax(0.0,bg_fadein - 0.05);
+    bg_pos = (bg_pos+1) % backgroundMusicSize;
+    float bg_bass = backgroundMusic[bg_pos][0];
+    float bg_mid  = backgroundMusic[bg_pos][1];
+    float bg_treb = backgroundMusic[bg_pos][2];
+    float bg_vol  = bg_bass + bg_mid + bg_treb;
+    float bg_history = (bg_history * 0.99) + 0.1;
+
+    vol  += bg_vol / (1.5 * bg_history);
+
+    bass += bg_fadein * bg_bass;
+    mid  += bg_fadein * bg_mid;
+    treb += bg_fadein * bg_treb;
+
     treb_att = .6f * treb_att + .4f * treb;
     mid_att  = .6f * mid_att + .4f * mid;
     bass_att = .6f * bass_att + .4f * bass;

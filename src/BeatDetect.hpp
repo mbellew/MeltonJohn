@@ -37,11 +37,12 @@
 class BeatDetect
 {
 public:
+    float beat_sensitivity;
+    /* outputs of detectFromSamples() */
     float treb;
     float mid;
     float bass;
     float vol_old;
-    float beat_sensitivity;
     float treb_att;
     float mid_att;
     float bass_att;
@@ -58,7 +59,7 @@ public:
 
     void getBeatVals(float *vdataL, float *vdataR);
 
-private:
+public:
     /** Vars */
     float beat_buffer[32][80];
     float beat_instant[32];
@@ -70,6 +71,10 @@ private:
     float vol_buffer[80];
     float vol_instant;
     float vol_history;
+
+    float bg_fadein;
+    int bg_pos;
+    float bg_history;
 };
 
 #endif /** !_BEAT_DETECT_H */

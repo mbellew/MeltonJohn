@@ -4,7 +4,8 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
-
+#include <vector>
+#include <string>
 #include <pulse/simple.h>
 #include <pulse/error.h>
 
@@ -36,26 +37,25 @@ inline double time_in_seconds()
 void setOutputDevice(FILE *);
 
 
-// TODO rewrite to use async api instead of pa_simple_new
-
 int main(int argc, char *argv[])
 {
-    if (argc > 1)
-    {
-        FILE *f = fopen(argv[1] ,"a");
-        if (nullptr == f)
-        {
-            fprintf(stderr, "failed to open device: %s\n", argv[1]);
-            exit(1);
-        }
-        setOutputDevice(f);
-    }
-
     // handle SIGTERM to make running as a service work better
     struct sigaction action = {nullptr};
     memset(&action, 0, sizeof(struct sigaction));
     action.sa_handler = term;
     sigaction(SIGTERM, &action, nullptr);
+
+    // parse command line arguments
+    std::vector<std::string> devices;
+    for (int arg = 1 ; arg < argc ; arg++)
+    {
+        devices.push_back(argv[arg]);
+    }
+    if (0 == devices.size())
+    {
+        devices.push_back("alsa_input.usb-0c76_USB_PnP_Audio_Device-00.analog-stereo");
+        devices.push_back("alsa_input.usb-0c76_USB_PnP_Audio_Device-00.multichannel-input");
+    }
 
     PCM pcm;
     pcm.initPCM(2048);
@@ -72,13 +72,28 @@ int main(int argc, char *argv[])
     int error;
     /* Create the recording stream */
     pa_simple *s = nullptr;
-    if (!(s = pa_simple_new(nullptr, argv[0], PA_STREAM_RECORD, "alsa_input.usb-0c76_USB_PnP_Audio_Device-00.analog-stereo", "record", &ss, nullptr, nullptr, &error)))
-    //if (!(s = pa_simple_new(nullptr, argv[0], PA_STREAM_RECORD, "alsa_input.usb-0c76_USB_PnP_Audio_Device-00.multichannel-input", "record", &ss, nullptr, nullptr, &error)))
+    for (int dev=0 ; dev < devices.size() ; dev++)
+    {
+        s = pa_simple_new(nullptr, argv[0], PA_STREAM_RECORD, devices.at(dev).c_str(), "record", &ss, nullptr, nullptr, &error);
+        if (nullptr != s)
+        {
+            fprintf(stderr, "opened audio device: %s\n", devices.at(dev).c_str());
+            break;
+        }
+    }
+    if (nullptr == s)
+    {
+        s = pa_simple_new(nullptr, argv[0], PA_STREAM_RECORD, nullptr, "record", &ss, nullptr, nullptr, &error);
+        if (nullptr != s)
+        {
+            fprintf(stderr, "opened default audio device\n");
+        }
+    }
+    if (nullptr == s)
     {
         fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", pa_strerror(error));
         exit(1);
     }
-
 
     double framerate_time = time_in_seconds();
     double start_time = framerate_time;
@@ -120,6 +135,7 @@ int main(int argc, char *argv[])
         next_frame_time += frame_duration;
 
         beatDetect.detectFromSamples();
+        //fprintf(stderr, "%f %f\n", beatDetect.vol_history, beatDetect.bg_fadein);
         renderFrame(&beatDetect, time);
 
         if (++framerate_count == 100)
