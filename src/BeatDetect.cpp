@@ -32,41 +32,7 @@
 #include "BeatDetect.hpp"
 
 
-// ONE SECOND OF FAKE DATA
-const float k = 1;
-const size_t backgroundMusicSize = 30;
-float backgroundMusic[backgroundMusicSize][3]
-{
-    {k,0,0},
-    {k,0,0},
-    {k,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,k,0},
-    {0,k,0},
-    {0,k,0},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0},
-    {k,0,0},
-    {k,0,0},
-    {k,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,k,k},
-    {0,k,k},
-    {0,k,k},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0},
-    {0,0,0}
-};
+#include "beats.data"
 
 
 BeatDetect::BeatDetect(PCM *pcm)
@@ -185,7 +151,7 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
     }
     treb = treb / (1.5f * temp2);
 
-    vol = vol_instant / (1.5f * vol_history);
+    vol = vol_instant / (1.5f * fmax(0.0001,vol_history));
 
     if (std::isnan(treb))
     {
@@ -198,6 +164,10 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
     if (std::isnan(bass))
     {
         bass = 0.0;
+    }
+    if (std::isnan(vol))
+    {
+        vol = 0.0;
     }
 
     // if volume is very low, the add in background
