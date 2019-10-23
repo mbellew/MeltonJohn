@@ -11,7 +11,9 @@
 
 #include "BeatDetect.hpp"
 #include "PCM.hpp"
+#include "Patterns.h"
 
+uint8_t fred;
 
 volatile sig_atomic_t terminate = 0;
 
@@ -20,9 +22,6 @@ void term(int signum)
 {
     terminate = 1;
 }
-
-
-void renderFrame(BeatDetect *beatDetect, double current_time);
 
 
 inline double time_in_seconds()
@@ -34,7 +33,51 @@ inline double time_in_seconds()
 }
 
 
-void setOutputDevice(FILE *);
+void outputOLA(FILE *device, uint8_t ledData[], size_t size)
+{
+    char str[20];
+    for (int i=0 ; i<size ; i++)
+        fprintf(device, "%d,", (unsigned int)ledData[i]);
+    fprintf(device, "\n");
+    fflush(device);
+}
+
+
+
+const unsigned STARTBYTE = 0x005E;   // ^  --> ~
+const unsigned ENDBYTE   = 0x0024;   // $  --> EOT
+const unsigned ESCBYTE   = 0x005C;   // \  --> |
+const unsigned XORBYTE   = 0x0020;
+
+/** PPP inspired serial encoding */
+void outputPPP(FILE *dev, uint8_t ledData[], size_t size)
+{
+	fputc(STARTBYTE, dev);
+    for (int i=0 ; i<size ; i++)
+    {
+        uint8_t b = ledData[i];
+        if (b == STARTBYTE || b == ENDBYTE || b == ESCBYTE)
+	    {
+            fputc(ESCBYTE, dev);
+            fputc(b ^ XORBYTE, dev);
+        }
+        else
+        {
+            fputc(b, dev);
+        }
+    }
+	fputc(ENDBYTE, dev);
+    if (STARTBYTE != ENDBYTE)
+    	fputc('\n', dev);
+}
+
+
+
+enum FORMAT
+{
+    OLA,
+    PPP
+};
 
 
 int main(int argc, char *argv[])
@@ -45,11 +88,22 @@ int main(int argc, char *argv[])
     action.sa_handler = term;
     sigaction(SIGTERM, &action, nullptr);
 
+    FORMAT format = OLA;
+
     // parse command line arguments
     std::vector<std::string> devices;
-    for (int arg = 1 ; arg < argc ; arg++)
+    bool beatDetectOnly = false;
+    for (int i = 1 ; i < argc ; i++)
     {
-        devices.push_back(argv[arg]);
+        const char *arg = argv[i];
+        if (0==strcmp("-beat", arg))
+            beatDetectOnly = true;
+        else if (0==strcmp("-ppp", arg))
+            format = PPP;
+        else if (0==strcmp("-ola", arg))
+            format = OLA;
+        else
+            devices.push_back(arg);
     }
     if (0 == devices.size())
     {
@@ -103,14 +157,16 @@ int main(int argc, char *argv[])
 
     const unsigned SAMPLES = 512;
     // note sizeof(float) > sizeof(short)
-    float data[SAMPLES * ss.channels];
+    float audioSamples[SAMPLES * ss.channels];
+
+    uint8_t ledData[3*IMAGE_SIZE] = {0}; 
 
     while (!terminate)
     {
         double time;
         do
         {
-            if (pa_simple_read(s, data, sizeof(data), &error) < 0)
+            if (pa_simple_read(s, audioSamples, sizeof(audioSamples), &error) < 0)
             {
                 fprintf(stderr, __FILE__": pa_simple_read() failed: %s\n", pa_strerror(error));
                 exit(1);
@@ -119,16 +175,16 @@ int main(int argc, char *argv[])
             if (ss.format == PA_SAMPLE_FLOAT32)
             {
                 if (ss.channels == 1)
-                    pcm.addPCMfloat_mono(data, SAMPLES);
+                    pcm.addPCMfloat_mono(audioSamples, SAMPLES);
                 else
-                    pcm.addPCMfloat(data, SAMPLES);
+                    pcm.addPCMfloat(audioSamples, SAMPLES);
             }
             else
             {
                 if (ss.channels == 1)
-                    pcm.addPCM16Data_mono((short *)data, SAMPLES);
+                    pcm.addPCM16Data_mono((short *)audioSamples, SAMPLES);
                 else
-                    pcm.addPCM16Data((short *)data, SAMPLES);
+                    pcm.addPCM16Data((short *)audioSamples, SAMPLES);
             }
             time = time_in_seconds();
         } while ( time < next_frame_time);
@@ -136,7 +192,19 @@ int main(int argc, char *argv[])
 
         beatDetect.detectFromSamples();
         //fprintf(stderr, "%f %f\n", beatDetect.vol_history, beatDetect.bg_fadein);
-        renderFrame(&beatDetect, time);
+
+        if (beatDetectOnly)
+        {
+            printf("{%f, %f, %f, %f},\n", beatDetect.bass, beatDetect.mid, beatDetect.treb, beatDetect.vol);
+        }
+        else
+        {
+            renderFrame(&beatDetect, time, ledData);
+            if (format == OLA)
+                outputOLA(stdout, ledData, 3*IMAGE_SIZE);
+            else
+                outputPPP(stdout, ledData, 3*IMAGE_SIZE);
+        }
 
         if (++framerate_count == 100)
         {

@@ -5,9 +5,7 @@
 #include <string>
 #include <vector>
 #include "BeatDetect.hpp"
-
-
-void clearPiano();
+#include "Patterns.h"
 
 
 unsigned randomInt(unsigned max)
@@ -24,20 +22,6 @@ double randomdouble()
 {
     return random() / (double) RAND_MAX;
 }
-
-
-#define IMAGE_SIZE 20
-#define IMAGE_SCALE ((double)IMAGE_SIZE)
-#define OB_LEFT 0
-#define OB_RIGHT (IMAGE_SIZE-1)
-#define IB_LEFT 1
-#define IB_RIGHT (IMAGE_SIZE-2)
-#define LEFTMOST_M_PIXEL 0
-#define RIGHTMOST_M_PIXEL (IMAGE_SIZE-1)
-#define RED_CHANNEL 0
-#define BLUE_CHANNEL 1
-#define GREEN_CHANNEL 2
-
 
 inline double IN(double a, double b, double r)
 {
@@ -830,23 +814,19 @@ void setOutputDevice(FILE *f)
     device = f;
 }
 
-void drawPiano(PatternContext &ctx, Image &image)
+
+void outputLEDData(PatternContext &ctx, Image &image, uint8_t ledData[])
 {
-    if (device == 0)
-    {
-        device = stdout;
-        clearPiano();
-    }
     for (int i = 0; i < IMAGE_SIZE; i++)
     {
         Color c = image.getRGB(i);
         int r = (int) (pow(constrain(c.rgba.r), ctx.gamma) * 255);
         int g = (int) (pow(constrain(c.rgba.g), ctx.gamma) * 255);
         int b = (int) (pow(constrain(c.rgba.b), ctx.gamma) * 255);
-        fprintf(device, "%d,%d,%d,", r, g, b);
+        ledData[i*3+0] = r;
+        ledData[i*3+1] = g;
+        ledData[i*3+2] = b;
     }
-    fprintf(device, "\n");
-    fflush(device);
 }
 
 
@@ -924,7 +904,7 @@ unsigned int pattern_index = 0;
 double preset_start_time = 0;
 double prev_time = 0;
 
-void renderFrame(BeatDetect *beatDetect, double current_time)
+void renderFrame(BeatDetect *beatDetect, double current_time, uint8_t ledBuffer[])
 {
     beatDetect->detectFromSamples();
     mybeat.update(current_time, 30, beatDetect);
@@ -1001,7 +981,7 @@ void renderFrame(BeatDetect *beatDetect, double current_time)
     pattern->draw(frame, work);
     stash.copyFrom(work);
     pattern->effects(frame, work);
-    drawPiano(frame, work);
+    outputLEDData(frame, work, ledBuffer);
     work.copyFrom(stash);
     pattern->end_frame(frame);
 }
@@ -2239,7 +2219,7 @@ void loadAllPatterns()
     patterns.push_back(new Equalizer());
     patterns.push_back(new EKG2());
     patterns.push_back(new Pebbles());
-    patterns.push_back(new BigWhiteLight2());
+    // patterns.push_back(new BigWhiteLight2());
     patterns.push_back(new SwayBeat());
 }
 
