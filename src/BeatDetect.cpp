@@ -172,15 +172,15 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
 
     // if volume is very low, the add in background
     if (vol_history < 0.00001)
-        bg_fadein = fmin(1,bg_fadein + 0.01);
+        bg_fadein = fmin(1.0f, bg_fadein + 0.01f);
     else if (vol_history > 0.00002)
-        bg_fadein = fmax(0.0,bg_fadein - 0.05);
+        bg_fadein = fmax(0.0f, bg_fadein - 0.05f);
     bg_pos = (bg_pos+1) % backgroundMusicSize;
     float bg_bass = backgroundMusic[bg_pos][0];
     float bg_mid  = backgroundMusic[bg_pos][1];
     float bg_treb = backgroundMusic[bg_pos][2];
     float bg_vol  = bg_bass + bg_mid + bg_treb;
-    float bg_history = (bg_history * 0.99) + 0.1;
+    bg_history = (bg_history * 0.99f) + 0.1f;
 
     vol  += bg_vol / (1.5 * bg_history);
 

@@ -1,4 +1,4 @@
-#include "BeatDetect.hpp"
+#include "MidiMix.h"
 
 #define IMAGE_SIZE 20
 #define IMAGE_SCALE ((double)IMAGE_SIZE)
@@ -12,4 +12,22 @@
 #define BLUE_CHANNEL 1
 #define GREEN_CHANNEL 2
 
-extern void renderFrame(BeatDetect *beatDetect, double current_time, unsigned char ledData[]);
+
+struct Spectrum
+{
+    float bass;
+    float mid;
+    float treb;
+    float bass_att;
+    float mid_att;
+    float treb_att;
+    float vol;
+};
+
+
+
+extern void renderFrame(float time, const Spectrum *spectrum, float buffer[], size_t size);
+extern void renderFrame(float time, const Spectrum *spectrum, MidiMix *board, float buffer[], size_t size);
+
+extern void rgb2hsl(const double *rgb, double *hsl);
+extern void hsl2rgb(const double *hsl, double *rgb);

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "BeatDetect.hpp"
+#include "MidiMix.h"
 #include "Patterns.h"
 
 
@@ -25,7 +26,8 @@ double randomdouble()
 
 inline double IN(double a, double b, double r)
 {
-    return a * (1.0 - r) + b * (r);
+    //return a * (1.0 - r) + b * (r);
+    return a + r*(b-a);
 }
 
 inline double MAX(double a, double b)
@@ -53,7 +55,7 @@ inline double constrain(double x, double mn, double mx)
     return x < mn ? mn : x > mx ? mx : x;
 }
 
-inline double constrainf(double x, double mn, double mx)
+inline float constrainf(float x, float mn, float mx)
 {
     return x < mn ? mn : x > mx ? mx : x;
 }
@@ -61,6 +63,10 @@ inline double constrainf(double x, double mn, double mx)
 inline double constrain(double x)
 {
     return constrain(x, 0.0, 1.0);
+}
+inline float constrain(float x)
+{
+    return constrainf(x, 0.0f, 1.0f);
 }
 
 inline int constrain(int x, int mn, int mx)
@@ -125,7 +131,7 @@ double _hue2rgb(double p, double q, double t)
     return p;
 }
 
-void hsl2rgb(double *hsl, double *rgb)
+void hsl2rgb(const double *hsl, double *rgb)
 {
     double h = fmod(hsl[0], 1.0), s = hsl[1], l = hsl[2];
 
@@ -506,8 +512,9 @@ public:
 class PatternContext
 {
 public:
-    PatternContext() : fade(1.0), blur(false), fade_to(), cx(0.5), sx(1.0), dx(0.0), saturate(0), gamma(2.0),
+    PatternContext() : fade_to(), fade(1.0), blur(false), cx(0.5), sx(1.0), dx(0.0), dx_wrap(true),
                        ob_size(0), ib_size(0),
+                       gamma(2.0), saturate(0),
                        time(0)
     {
     }
@@ -523,7 +530,7 @@ public:
     double cx;       // center
     double sx;       // stretch
     double dx;       // slide
-    bool dx_wrap;  // rotate?
+    bool dx_wrap;    // rotate?
 
     unsigned ob_size;  // left border
     Color ob_right;
@@ -815,17 +822,17 @@ void setOutputDevice(FILE *f)
 }
 
 
-void outputLEDData(PatternContext &ctx, Image &image, uint8_t ledData[])
+void outputLEDData(PatternContext &ctx, Image &image, float ledData[])
 {
     for (int i = 0; i < IMAGE_SIZE; i++)
     {
         Color c = image.getRGB(i);
-        int r = (int) (pow(constrain(c.rgba.r), ctx.gamma) * 255);
-        int g = (int) (pow(constrain(c.rgba.g), ctx.gamma) * 255);
-        int b = (int) (pow(constrain(c.rgba.b), ctx.gamma) * 255);
-        ledData[i*3+0] = r;
-        ledData[i*3+1] = g;
-        ledData[i*3+2] = b;
+//        int r = (int) (pow(, ctx.gamma) * 255);
+//        int g = (int) (pow(constrain(c.rgba.g), ctx.gamma) * 255);
+//        int b = (int) (pow(constrain(c.rgba.b), ctx.gamma) * 255);
+        ledData[i*3+0] = constrain(c.rgba.r);
+        ledData[i*3+1] = constrain(c.rgba.g);
+        ledData[i*3+2] = constrain(c.rgba.b);
     }
 }
 
@@ -842,6 +849,7 @@ void clearPiano()
 }
 
 
+extern Pattern *midiPattern;
 PatternContext context;
 Image work;
 Image stash;
@@ -850,6 +858,7 @@ void loadPatterns();
 
 std::vector<Pattern *> patterns;
 Pattern *currentPattern = nullptr;
+
 
 class MyBeat007
 {
@@ -863,12 +872,12 @@ public:
 
     MyBeat007() :
             sure(0.6),
-            interval(40),
+            maxdbass(0.012),
             lastbeat(0),
-            maxdbass(0.012)
+            interval(40)
     {}
 
-    void update(double frame, double fps, BeatDetect *beatDetect)
+    void update(double frame, double fps, const Spectrum *beatDetect)
     {
         double dbass = (beatDetect->bass - pbass) / fps;
         //fprintf(stderr, "%lf %lf\n", dbass, maxdbass);
@@ -900,13 +909,19 @@ public:
 
 // TODO make an enclosing class and kill these globals
 MyBeat007 mybeat;
+MidiMix *midi;
 unsigned int pattern_index = 0;
 double preset_start_time = 0;
 double prev_time = 0;
+double vol_old = 1.0;
 
-void renderFrame(BeatDetect *beatDetect, double current_time, uint8_t ledBuffer[])
+void renderFrame(float current_time, const Spectrum *beatDetect, float ledBuffer[], size_t bufferLen)
 {
-    beatDetect->detectFromSamples();
+    renderFrame(current_time, beatDetect, nullptr, ledBuffer, bufferLen);
+}
+
+void renderFrame(float current_time, const Spectrum *beatDetect, MidiMix *midi_, float ledBuffer[], size_t bufferLen)
+{
     mybeat.update(current_time, 30, beatDetect);
 
     if (patterns.empty())
@@ -914,10 +929,17 @@ void renderFrame(BeatDetect *beatDetect, double current_time, uint8_t ledBuffer[
 
     double progress = (current_time - preset_start_time) / 40.0;
 
-    double beat_sensitivity = beatDetect->beat_sensitivity - (progress > 0.5 ? progress - 0.5 : 0.0);
-    if (nullptr == currentPattern ||
-        progress > 1.0 ||
-        ((beatDetect->vol - beatDetect->vol_old > beat_sensitivity) && progress > 0.5))
+    double beat_sensitivity = /*beatDetect->beat_sensitivity*/ 5.0 - (progress > 0.5 ? progress - 0.5 : 0.0);
+    Pattern *changeTo = nullptr;
+    if (nullptr != midi_)
+    {
+        midi = midi_;
+        if (currentPattern != midiPattern)
+            changeTo = midiPattern;
+    }
+    else if (nullptr == currentPattern ||
+             progress > 1.0 ||
+             ((beatDetect->vol - vol_old > beat_sensitivity) && progress > 0.5))
     {
         if (patterns.empty())
             return;
@@ -926,19 +948,23 @@ void renderFrame(BeatDetect *beatDetect, double current_time, uint8_t ledBuffer[
         else if (patterns.size() == 2)
             pattern_index++;
         else
-            pattern_index = pattern_index + 1 + randomInt((unsigned)patterns.size() - 1);
-        pattern_index = pattern_index % (unsigned)patterns.size();
-        currentPattern = patterns.at(pattern_index);
+            pattern_index = pattern_index + 1 + randomInt((unsigned) patterns.size() - 1);
+        pattern_index = pattern_index % (unsigned) patterns.size();
+        changeTo = patterns.at(pattern_index);
+    }
+    if (nullptr != changeTo)
+    {
+        currentPattern = changeTo;
         currentPattern->setup(context);
         fprintf(stderr, "%s\n", currentPattern->name().c_str());
         if (device && device != stdout)
             fprintf(device, "%s\n", currentPattern->name().c_str());
         preset_start_time = current_time;
     }
+    vol_old = beatDetect->vol;
+
+
     Pattern *pattern = currentPattern;
-
-    //fprintf(stderr, "%lf %lf %lf\n", beatDetect->bass, beatDetect->mid, beatDetect->treb);
-
     PatternContext frame(context);
     frame.time = current_time;
     frame.dtime = frame.time - prev_time;
@@ -1550,7 +1576,7 @@ public:
     void per_point(PatternContext &ctx, PointContext &pt) override
     {
         double x = scale * pt.rad;
-        double wave_time = 0.0;
+//        double wave_time = 0.0;
         double modifier = 1.0 + (ctx.bass - ctx.bass_att) * 0.2;
 //        pt.sx = pt.sx + sin(x + wave_time*ctx.time) * amplitude;
         pt.sx = pt.sx + sin(fabs(x) * modifier) * amplitude;
@@ -2009,7 +2035,7 @@ public:
         // double b = constrain(ctx.bass - ctx.treb*0.8);
         // t = constrain(t / ctx.vol - 1.5);
         // b = constrain(b / ctx.vol - 1.5);
-        double vol = (ctx.bass * 2 + ctx.mid + ctx.treb * 2) / 5.0;
+//        double vol = (ctx.bass * 2 + ctx.mid + ctx.treb * 2) / 5.0;
         double t = constrain(ctx.treb / ctx.vol - 2.1);
         double b = constrain(ctx.bass / ctx.vol - 2.1);
         Color c = Color(1.0 - b, 1.0 - t - b, 1.0 - t);
@@ -2073,7 +2099,7 @@ public:
         // double b = constrain(ctx.bass - ctx.treb*0.8);
         // t = constrain(t / ctx.vol - 1.5);
         // b = constrain(b / ctx.vol - 1.5);
-        double vol = (ctx.bass * 2 + ctx.mid + ctx.treb * 2) / 5.0;
+        //double vol = (ctx.bass * 2 + ctx.mid + ctx.treb * 2) / 5.0;
         double t = constrain(ctx.treb / ctx.vol - 2.1);
         double b = constrain(ctx.bass / ctx.vol - 2.1);
         Color c = Color(1.0 - b, 1.0 - t - b, 1.0 - t);
@@ -2207,6 +2233,87 @@ public:
     {
     }
 };
+
+
+
+class Slider
+{
+    const size_t col;
+    const size_t row;
+public:
+    Slider(size_t col_, size_t row_) : col(col_), row(row_)
+    {
+    }
+    inline float get(const MidiMix &midi) const
+    {
+        return midi.sliders[col][row];
+    }
+    inline float get(const MidiMix *midi) const
+    {
+        return midi->sliders[col][row];
+    }
+};
+Slider redRate(0,0);
+Slider redMin(0,1);
+Slider redMax(0,2);
+Slider greenRate(1,0);
+Slider greenMin(1,1);
+Slider greenMax(1,2);
+Slider blueRate(2,0);
+Slider blueMin(2,1);
+Slider blueMax(2,2);
+
+Slider fade(0,3);
+Slider sx(1,3);
+
+class MidiPattern : public AbstractPattern
+{
+public:
+    MidiPattern() : AbstractPattern("midi")
+    {};
+
+    void setup(PatternContext &ctx) override
+    {
+        ctx.ob_size = 1;
+        ctx.fade = 0.99;
+        ctx.sx = 0.8;
+    }
+
+    virtual void per_frame(PatternContext &ctx)
+    {
+        ComboGenerator gen(
+                new SimpleGenerator(fmin(redMin.get(midi), redMax.get(midi)), fmax(redMin.get(midi), redMax.get(midi)), 0.5 + 10.0*redRate.get(midi)),
+                new SimpleGenerator(fmin(greenMin.get(midi), greenMax.get(midi)), fmax(greenMin.get(midi), greenMax.get(midi)), 0.4 + 11.0*greenRate.get(midi)),
+                new SimpleGenerator(fmin(blueMin.get(midi), blueMax.get(midi)), fmax(blueMin.get(midi), blueMax.get(midi)), 0.6 + 9.0*blueRate.get(midi))
+        );
+        Color c = gen.next(ctx.time);
+
+        ctx.fade = IN(0.95, 1.05, fade.get(midi));
+        ctx.sx   = IN(1.0, 0.8, sx.get(midi));
+
+        double v = MAX(ctx.vol_att, ctx.vol);
+        double s = MIN(1.0, 0.55 + 0.3 * v);
+        c.saturate(s);
+        ctx.ob_left = ctx.ob_right = c;
+
+#if 1
+        if (midi->changed())
+        {
+            fprintf(stderr, "red: %f %f %f\n", fmin(redMin.get(midi), redMax.get(midi)), fmax(redMin.get(midi), redMax.get(midi)), 0.5 + 10.0*redRate.get(midi));
+            fprintf(stderr, "green: %f %f %f\n", fmin(greenMin.get(midi), greenMax.get(midi)), fmax(greenMin.get(midi), greenMax.get(midi)), 0.5 + 10.0*greenRate.get(midi));
+            fprintf(stderr, "blue: %f %f %f\n", fmin(blueMin.get(midi), blueMax.get(midi)), fmax(blueMin.get(midi), blueMax.get(midi)), 0.5 + 10.0*blueRate.get(midi));
+            fprintf(stderr, "fade: %f\n", ctx.fade);
+            fprintf(stderr, "sx: %f\n", ctx.sx);
+            fprintf(stderr, "        double v = MAX(ctx.vol_att, ctx.vol);\n"
+                            "        double s = MIN(1.0, 0.55 + 0.3 * v);\n"
+                            "        c.saturate(s);");
+        }
+#endif
+    }
+};
+
+
+class Pattern *midiPattern = new MidiPattern();
 
 
 void loadAllPatterns()

@@ -14,5 +14,7 @@ add_executable(MeltonJohn
         src/Patterns.cpp
         src/PCM.cpp
         src/PCM.hpp
+        src/MidiMix.cpp
+        src/MidiMix.h
         )
 target_link_libraries(MeltonJohn pulse pulse-simple)

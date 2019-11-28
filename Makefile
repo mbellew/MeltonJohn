@@ -1,12 +1,14 @@
-build:
-	g++ -std=c++11 -ggdb -O3 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
+build: MeltonJohn
 
-debug:
-	g++ -std=c++11 -ggdb -Og src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
+MeltonJohn: src/*.cpp src/*.h src/beats.data MeltonJohn_debug
+	g++ -Wall -std=c++11 -ggdb -O3 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
+#	g++ -Wall -Werror -std=c++11 -ggdb -O3 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
 
-run:
+MeltonJohn_debug: src/*.cpp src/*.h src/beats.data
+	g++ -Wall -std=c++11 -ggdb -Og -O0 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn_debug
+
+run: MeltonJohn
 	./MeltonJohn | python3 viewer.py
-
 
 /etc/systemd/system/multi-user.target.wants/RESET.service:
 	sudo systemctl enable $(shell pwd)/systemd/RESET.service

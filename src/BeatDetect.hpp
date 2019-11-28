@@ -73,7 +73,7 @@ public:
     float vol_history;
 
     float bg_fadein;
-    int bg_pos;
+    size_t bg_pos;
     float bg_history;
 };
 
