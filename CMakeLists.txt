@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 14)
 include_directories(src)
 
 add_executable(MeltonJohn
+        src/beat_data.cpp
+        src/beat_data.h
         src/BeatDetect.cpp
         src/BeatDetect.hpp
         src/fftsg.cpp

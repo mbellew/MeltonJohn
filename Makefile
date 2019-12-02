@@ -1,10 +1,10 @@
-build: MeltonJohn
+build: MeltonJohn MeltonJohn_debug
 
-MeltonJohn: src/*.cpp src/*.h src/beats.data MeltonJohn_debug
+MeltonJohn: src/*.cpp src/*.h src/*.hpp
 	g++ -Wall -std=c++11 -ggdb -O3 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
 #	g++ -Wall -Werror -std=c++11 -ggdb -O3 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
 
-MeltonJohn_debug: src/*.cpp src/*.h src/beats.data
+MeltonJohn_debug: src/*.cpp src/*.h src/*.hpp
 	g++ -Wall -std=c++11 -ggdb -Og -O0 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn_debug
 
 run: MeltonJohn
