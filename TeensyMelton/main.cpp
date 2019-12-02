@@ -363,9 +363,15 @@ void loop_()
     if (sound.next(spectrum))
     {
       frame++;
-      uint8_t buffer[IMAGE_SIZE*3];
-      renderFrame(millis() / 1000.0, &spectrum, buffer, sizeof(buffer));
-      renderer.write(buffer, sizeof(buffer));
+      float f32values[IMAGE_SIZE*3];
+      renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
+      uint8_t u8values[IMAGE_SIZE*3];
+      for (size_t i=0 ; i<IMAGE_SCALE*3 ; i++)
+      {
+          int v = (int)round(f32values[i]*255.0);
+          u8values[i] = v>255 ? 255 : v<0 ? 0 : v;
+      }
+      renderer.write(u8values, IMAGE_SIZE*3);
       //rendererDebug.write(buffer, sizeof(buffer));
     }
 }
