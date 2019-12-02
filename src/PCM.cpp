@@ -31,7 +31,7 @@
 #include "fftsg.hpp"
 #include "PCM.hpp"
 #include <cassert>
-#include <iostream>
+//#include <iostream>
 
 
 int PCM::maxsamples = 2048;

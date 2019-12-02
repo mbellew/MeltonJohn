@@ -30,9 +30,7 @@
 #include <stdio.h>
 #include <cmath>
 #include "BeatDetect.hpp"
-
-
-#include "beats.data"
+#include "beat_data.h"
 
 
 BeatDetect::BeatDetect(PCM *pcm)
