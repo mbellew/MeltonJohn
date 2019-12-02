@@ -77,6 +77,7 @@ private:
 
     void message(uint8_t status, uint8_t channel, uint8_t control, uint8_t value);
     // called when "SEND ALL" is detected
+    void syncButton(size_t col, size_t row);
     void sync();
 };
 

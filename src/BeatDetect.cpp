@@ -42,7 +42,7 @@ BeatDetect::BeatDetect(PCM *pcm)
     this->pcm = pcm;
 
     this->vol_instant = 0;
-    this->vol_history = 0;
+    this->vol_history = 0.1;
 
     for (y = 0; y < 80; y++)
     {
@@ -131,7 +131,7 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
     vol_buffer[beat_buffer_pos] = vol_instant;
     vol_history += (vol_instant) * .0125;
 
-    bass = (beat_instant[0]) / (1.5f * beat_history[0]);
+    bass = (beat_instant[0]) / (1.5f * (float)fmax(beat_history[0],0.0001f));
 
     temp2 = 0;
     mid = 0;
@@ -140,7 +140,7 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
         mid += (beat_instant[x]);
         temp2 += (beat_history[x]);
     }
-    mid = mid / (1.5f * temp2);
+    mid = mid / (1.5f * (float)fmax(temp2,0.0001f));
 
     temp2 = 0;
     treb = 0;
@@ -149,9 +149,9 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
         treb += (beat_instant[x]);
         temp2 += (beat_history[x]);
     }
-    treb = treb / (1.5f * temp2);
+    treb = treb / (1.5f * (float)fmax(temp2,0.0001f));
 
-    vol = vol_instant / (1.5f * fmax(0.0001,vol_history));
+    vol = vol_instant / (1.5f * (float)fmax(vol_history,0.0001f));
 
     if (std::isnan(treb))
     {

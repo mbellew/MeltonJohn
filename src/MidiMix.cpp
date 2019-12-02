@@ -92,10 +92,26 @@ void MidiMix::message(uint8_t status, uint8_t channel, uint8_t control, uint8_t 
     {
         if (control >= 0x01 && control <= 0x18)
         {
-            int col = (control - 1) / 3;
-            int button = (control - 1) % 3;
-            buttons[col][button] = !buttons[col][button];
-            out.put(0x90); out.put(control); out.put((uint8_t)0x7f * (uint8_t) buttons[col][button]);
+            size_t col = (size_t)(control - 1) / 3;
+            size_t button = (size_t)(control - 1) % 3;
+            // make solo buttons act like "radio" buttons (only one active)
+            if (button == 1)
+            {
+                for (size_t c=0 ; c<8 ; c++)
+                {
+                    bool state = c == col;
+                    if (buttons[c][button] != state)
+                    {
+                        buttons[c][button] = state;
+                        syncButton(c,button);
+                    }
+                }
+            }
+            else // toggle buttons in rows 1 and 3
+            {
+                buttons[col][button] = !buttons[col][button];
+                syncButton(col,button);
+            }
             _changed = true;
         }
         else if (control == 0x19)
@@ -106,12 +122,24 @@ void MidiMix::message(uint8_t status, uint8_t channel, uint8_t control, uint8_t 
 }
 
 
+void MidiMix::syncButton(size_t col, size_t row)
+{
+    uint8_t control = 1 + col*3 + row;
+    out.put(0x90); out.put(control); out.put((uint8_t)0x7f * (uint8_t) buttons[col][row]);
+}
+
+
 void MidiMix::sync()
 {
-    for (uint8_t control=0x01 ; control<=0x18 ; control++)
-    {
-        size_t col    = (size_t)(control - 0x01) / 3;
-        size_t button = (size_t)(control - 0x01) % 3;
-        out.put(0x90); out.put(control); out.put((uint8_t)0x7f * (uint8_t)buttons[col][button]);
-    }
+    // make sure exactly one 'solo' button is on
+    size_t solo = 0;
+    for (size_t col=0 ; col<8 ; col++)
+        if (buttons[col][1])
+            solo = col;
+    for (size_t col=0 ; col<8 ; col++)
+        buttons[col][1] = col==solo;
+
+    for (size_t col=0 ; col<8 ; col++)
+        for (size_t row=0 ; row < 3 ; row++)
+            syncButton(col, row);
 }
