@@ -120,6 +120,7 @@ void PCM::addPCMfloat(const float *PCMdata, int samples)
 }
 
 
+/*
 void PCM::addPCMfloat_mono(const float *PCMdata, int samples)
 {
     for (int i = 0; i < samples; i++)
@@ -141,7 +142,7 @@ void PCM::addPCMfloat_mono(const float *PCMdata, int samples)
     getPCM(vdataL, 512, 0, 1, 0, 0);
     getPCM(vdataR, 512, 1, 1, 0, 0);
 }
-
+*/
 
 void PCM::addPCM16Data(const short *pcm_data, short samples)
 {
@@ -165,7 +166,7 @@ void PCM::addPCM16Data(const short *pcm_data, short samples)
     getPCM(vdataR, 512, 1, 1, 0, 0);
 }
 
-
+/*
 void PCM::addPCM16Data_mono(const short *pcm_data, short samples)
 {
     // TODO optimize mono case
@@ -188,7 +189,7 @@ void PCM::addPCM16Data_mono(const short *pcm_data, short samples)
     getPCM(vdataL, 512, 0, 1, 0, 0);
     getPCM(vdataR, 512, 1, 1, 0, 0);
 }
-
+*/
 
 //puts sound data requested at provided pointer
 //

@@ -963,6 +963,7 @@ void renderFrame(float current_time, const Spectrum *beatDetect, MidiMix *midi_,
     if (nullptr != changeTo)
     {
         currentPattern = changeTo;
+        context = PatternContext();
         currentPattern->setup(context);
         fprintf(stderr, "%s\n", currentPattern->name());
         if (device && device != stdout)
@@ -970,7 +971,6 @@ void renderFrame(float current_time, const Spectrum *beatDetect, MidiMix *midi_,
         preset_start_time = current_time;
     }
     vol_old = beatDetect->vol;
-
 
     Pattern *pattern = currentPattern;
     PatternContext frame(context);
@@ -2346,9 +2346,11 @@ Slider centerMin(0,1);
 Slider centerMax(0,2);
 
 // top row of buttons
-Button center(0,0);
-Button oneeightyEffect(1,0);
-Button blurEffect(1,0);
+Button enableCenter(0,0);     // enable ch 0  sliders
+Button enableOneeightyEffect(1,0);
+//Button blurEffect(1,0);
+Button enableComplement(2,0);    // but which palette?
+Button enablePalatte(3,0);    // but which palette?
 
 // vertical sliders + bottom row of buttons
 ButtonSlider fade(0);
@@ -2370,6 +2372,7 @@ class MidiPattern : public AbstractPattern
 
 protected:
     Color defaultColor;
+    Color alternateColor;
 
 public:
     MidiPattern() : AbstractPattern("midi")
@@ -2381,15 +2384,14 @@ public:
 
     virtual void per_frame(PatternContext &ctx) override
     {
-        // call setup() everytime because some features can be turned on and off and overwrite the setup values
-        setup(ctx);
-
         // combo generator does not free components, so don't new() them
         SimpleGenerator r(fmax(0.02,fmin(redMin.get(midi), redMax.get(midi))),     fmax(0.02,fmax(redMin.get(midi), redMax.get(midi))),     0.5 + 10.0*redRate.get(midi));
         SimpleGenerator g(fmax(0.02,fmin(greenMin.get(midi), greenMax.get(midi))), fmax(0.02,fmax(greenMin.get(midi), greenMax.get(midi))), 0.4 + 11.0*greenRate.get(midi));
         SimpleGenerator b(fmax(0.02,fmin(blueMin.get(midi), blueMax.get(midi))),   fmax(0.02,fmax(blueMin.get(midi), blueMax.get(midi))),   0.6 + 9.0*blueRate.get(midi));
         ComboGenerator gen(&r,&g,&b);
         defaultColor = gen.next(ctx.time);
+        alternateColor = defaultColor;
+        alternateColor.complement();
 
         if (fade.on(midi))
         {
@@ -2410,8 +2412,10 @@ public:
             double mx = MAX(defaultColor.rgba.r,defaultColor.rgba.g,defaultColor.rgba.b);
             double s = MIN(1.0, constrain(mx,0.0,0.7) + 0.5 * v * volSaturate.get(midi));
             defaultColor.saturate(s);
+            alternateColor = defaultColor;
+            alternateColor.complement();
         }
-        ctx.blur = blurEffect.on(midi);
+        //ctx.blur = blurEffect.on(midi);
 
         if (bassAccelerator.on(midi))
         {
@@ -2424,7 +2428,7 @@ public:
             ctx.sx = constrain(ctx.sx, 0.0, 10.0);
         }
 
-        if (center.on(midi))
+        if (enableCenter.on(midi))
         {
             SimpleGenerator cx(fmin(centerMin.get(midi), centerMax.get(midi)), fmax(centerMin.get(midi), centerMax.get(midi)), 0.5 + 10.0*centerRate.get(midi));
             ctx.cx = cx.next(ctx.time);
@@ -2434,7 +2438,7 @@ public:
 
     void effects(PatternContext &ctx, Image &image) override
     {
-        if (oneeightyEffect.on(midi))
+        if (enableOneeightyEffect.on(midi))
             image.rotate(ctx.cx);
     }
 };
@@ -2453,16 +2457,21 @@ public:
     void setup(PatternContext &ctx) override
     {
         ctx.ob_size = 1;
+        ctx.ib_size = 0;
         ctx.fade = 0.98;
         ctx.cx = 0.5;
         ctx.sx = 0.8;
+        ctx.dx_wrap = false;
     }
     void per_frame(PatternContext &ctx) override
     {
         MidiPattern::per_frame(ctx);
         ctx.ob_left = ctx.ob_right = defaultColor;
+        if (enableComplement.on(midi))
+            ctx.ob_right = alternateColor;
     }
 };
+
 class MidiFractalPattern : public MidiPattern
 {
 public:
@@ -2568,8 +2577,19 @@ public:
 
     void draw(PatternContext &ctx, Image &image) override
     {
-        Color c1 = Color(1.0, 0.0, 0.0); // red
-        Color c2 = Color(0.0, 1.0, 0.0); // green
+        Color c1, c2, cmix;
+        if (enablePalatte.on(midi))
+        {
+            c1 = Color(1.0, 0.0, 0.0); // red
+            c2 = Color(0.0, 1.0, 0.0); // green
+            cmix = Color(1.0, 1.0, 1.0, 0.5);
+        }
+        else
+        {
+            c1 = defaultColor;
+            c2 = alternateColor;
+            cmix = Color(1.0, 1.0, 0.0, 0.5);
+        }
         if (posB == posT)
             image.setRGB(posB, Color(1.0,1.0,0.0));
         else
@@ -2577,28 +2597,67 @@ public:
             image.setRGB(posB, c1);
             image.setRGB(posT, c2);
         }
-        Color cmix = Color(1.0, 1.0, 0.0, 0.5);
         for (int i = posT + 1; i < posB; i++)
             image.addRGB(i, cmix);
     }
 
     void effects(PatternContext &ctx, Image &image) override
     {
-        if (oneeightyEffect.on(midi))
+        if (enableOneeightyEffect.on(midi))
             image.rotate(0.5);
     }
 };
-class MidiPattern3 : public MidiPattern
+
+class MidiOneBorderPattern : public MidiPattern
 {
 public:
-    MidiPattern3()
+    MidiOneBorderPattern()
     {}
+    // we're hooking up stretch slider to dx
+    virtual float faderRangeMin() override { return 0.7; }
+    virtual float faderRangeMax() override { return 1.10; }
+    virtual float stretchRangeMin() override { return 0.85f; }
+    virtual float stretchRangeMax() override{ return 1.0f; }
+    void setup(PatternContext &ctx) override
+    {
+        ctx.ob_size = 1;
+        ctx.ib_size = 0;
+        ctx.fade = 0.90;
+        ctx.fade_to = BLACK;
+        ctx.cx = 0.0;
+        ctx.sx = 0.93;
+        ctx.dx_wrap = false;
+        ctx.blur = false;
+    }
+    void per_frame(PatternContext &ctx) override
+    {
+        MidiPattern::per_frame(ctx);
+        ctx.ob_left = BLACK;
+        ctx.ob_right = defaultColor;
+        if (0.3 > MAX(ctx.ob_right.rgba.r,ctx.ob_right.rgba.g,ctx.ob_right.rgba.b))
+            ctx.ob_right.saturate(0.3f);
+        ctx.dx = ctx.sx-1;
+        ctx.sx = 1.0;
+        fprintf(stderr,"%f\n",ctx.dx);
+    }
+
+    void effects(PatternContext &ctx, Image &image) override
+    {
+        image.rotate(-ctx.time/8.0);
+    }
 };
+
 class MidiPattern4 : public MidiPattern
 {
 public:
     MidiPattern4()
     {}
+
+    void setup(PatternContext &ctx) override
+    {
+        ctx.fade = 1.05;
+        ctx.fade_to = WHITE;
+    }
 };
 class MidiPattern5 : public MidiPattern
 {
@@ -2650,13 +2709,13 @@ void loadPatterns()
     //patterns.push_back(new GreenFlash());
     //patterns.push_back(new EKG2());
     //patterns[countOfPatterns++] = new Equalizer(true);
-
     midiPatterns[countOfMidiPatterns++] = new MidiBorderPattern();
     midiPatterns[countOfMidiPatterns++] = new MidiFractalPattern();
     midiPatterns[countOfMidiPatterns++] = new MidiEqualizerPattern();
-    midiPatterns[countOfMidiPatterns++] = new MidiPattern3();
-    midiPatterns[countOfMidiPatterns++] = new MidiPattern4();
-    midiPatterns[countOfMidiPatterns++] = new MidiPattern5();
-    midiPatterns[countOfMidiPatterns++] = new MidiPattern6();
-    midiPatterns[countOfMidiPatterns++] = new MidiPattern7();
+    midiPatterns[countOfMidiPatterns++] = new MidiOneBorderPattern();
+    // repeat
+    midiPatterns[countOfMidiPatterns++] = new MidiBorderPattern();
+    midiPatterns[countOfMidiPatterns++] = new MidiFractalPattern();
+    midiPatterns[countOfMidiPatterns++] = new MidiEqualizerPattern();
+    midiPatterns[countOfMidiPatterns++] = new MidiOneBorderPattern();
 }

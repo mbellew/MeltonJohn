@@ -54,7 +54,7 @@ BeatDetect::BeatDetect(PCM *pcm)
         this->beat_instant[x] = 0;
         this->beat_history[x] = 0;
         this->beat_val[x] = 1.0;
-        this->beat_att[x] = 1.0;
+//        this->beat_att[x] = 1.0;
         this->beat_variance[x] = 0;
         for (y = 0; y < 80; y++)
         {
@@ -112,22 +112,19 @@ void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
         beat_instant[x] = 0;
         for (y = linear * 2; y < (linear + 8 + x) * 2; y++)
         {
-            beat_instant[x] += ((vdataL[y] * vdataL[y]) + (vdataR[y] * vdataR[y])) * (1.0 / (8 + x));
-            vol_instant += ((vdataL[y] * vdataL[y]) + (vdataR[y] * vdataR[y])) * (1.0 / 512.0);
+            beat_instant[x] += (vdataL[y] * vdataL[y]) + (vdataR[y] * vdataR[y]);
+            vol_instant += ((vdataL[y] * vdataL[y]) + (vdataR[y] * vdataR[y]));
         }
+        beat_instant[x] /= 8.0f + x;
         linear = y / 2;
-        beat_history[x] -= (beat_buffer[x][beat_buffer_pos]) * .0125;
+        beat_history[x] += (beat_instant[x] - beat_buffer[x][beat_buffer_pos]) * .0125;
         beat_buffer[x][beat_buffer_pos] = beat_instant[x];
-        beat_history[x] += (beat_instant[x]) * .0125;
-
-        beat_val[x] = (beat_instant[x]) / (beat_history[x]);
-
-        beat_att[x] += (beat_instant[x]) / (beat_history[x]);
+        beat_val[x] = beat_instant[x] / beat_history[x];
     }
+    vol_instant /= 512.0f;
 
-    vol_history -= (vol_buffer[beat_buffer_pos]) * .0125;
+    vol_history += (vol_instant - vol_buffer[beat_buffer_pos]) * .0125;
     vol_buffer[beat_buffer_pos] = vol_instant;
-    vol_history += (vol_instant) * .0125;
 
     bass = (beat_instant[0]) / (1.5f * (float)fmax(beat_history[0],0.0001f));
 

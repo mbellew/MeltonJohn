@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
 
     while (!terminate)
     {
-        midiMix.update();
+            midiMix.update();
 
         double time;
         do
@@ -271,16 +271,16 @@ int main(int argc, char *argv[])
 
             if (ss.format == PA_SAMPLE_FLOAT32)
             {
-                if (ss.channels == 1)
-                    pcm.addPCMfloat_mono(audioSamples, SAMPLES);
-                else
+//                if (ss.channels == 1)
+//                    pcm.addPCMfloat_mono(audioSamples, SAMPLES);
+//                else
                     pcm.addPCMfloat(audioSamples, SAMPLES);
             }
             else
             {
-                if (ss.channels == 1)
-                    pcm.addPCM16Data_mono((short *)audioSamples, SAMPLES);
-                else
+//                if (ss.channels == 1)
+//                    pcm.addPCM16Data_mono((short *)audioSamples, SAMPLES);
+//                else
                     pcm.addPCM16Data((short *)audioSamples, SAMPLES);
             }
             time = time_in_seconds();

@@ -65,7 +65,7 @@ public:
     float beat_instant[32];
     float beat_history[32];
     float beat_val[32];
-    float beat_att[32];
+//    float beat_att[32];
     float beat_variance[32];
     int beat_buffer_pos;
     float vol_buffer[80];
@@ -73,7 +73,7 @@ public:
     float vol_history;
 
     float bg_fadein;
-    size_t bg_pos;
+    unsigned int bg_pos;
     float bg_history;
 };
 

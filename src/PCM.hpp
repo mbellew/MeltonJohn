@@ -62,9 +62,9 @@ public:
     void initPCM(int maxsamples);
 
     void addPCMfloat(const float *PCMdata, int samples);
-    void addPCMfloat_mono(const float *PCMdata, int samples);
+    //void addPCMfloat_mono(const float *PCMdata, int samples);
     void addPCM16Data(const short *pcm_data, short samples);
-    void addPCM16Data_mono(const short *pcm_data, short samples);
+    //void addPCM16Data_mono(const short *pcm_data, short samples);
 
     void getPCM(float *data, int samples, int channel, int freq, float smoothing, int derive);
 
