@@ -19,6 +19,7 @@
 
 #if 1
 #define LOG_print(x) Serial.print(x)
+//#define LOG_println() Serial.println()
 #define LOG_println(x) Serial.println(x)
 #else
 #define LOG_print(x)
@@ -44,16 +45,8 @@ typedef struct realcolor
 #define max(a, b) ((a)>(b)?(a):(b))
 #define min(a, b) ((a)<(b)?(a):(b)) 
 
-void P(int);
 
-
-//void rotate_wheel(unsigned long int deg, const byte (&in)[12], byte (&out)[12]);
-//void generate_wheel(unsigned long int deg, uint8_t mx, byte (&out)[12]);
-//void generate_wheel60(unsigned long int deg, uint8_t mx, byte (&out)[60]);
-float _sin[360];
-
-
-void P(int n)
+void LOG_format(int n)
 {
     if (n < 10)
         LOG_print("    ");
@@ -121,16 +114,12 @@ Serial.println();
         sums[0] /= count;
         sums[1] /= count;
         sums[2] /= count;
-        //LOG_print("count "); P(count); LOG_println();
-        //LOG_print("raw   "); P((int)(sums[0]*1000.0)); P((int)(sums[1]*1000.0)); P((int)(sums[2]*1000.0)); LOG_println();
+        //LOG_print("count "); LOG_format(count); LOG_println();
+        //LOG_print("raw   "); LOG_format((int)(sums[0]*1000.0)); LOG_format((int)(sums[1]*1000.0)); LOG_format((int)(sums[2]*1000.0)); LOG_println();
 
         float level = max(0.01, (sums[0] + sums[1] + sums[2]) / 3.0);
         volume_level = (volume_level * 29.0 + level) / 30.0;
-        //LOG_print("vol   "); P(volume_level*1000.0); LOG_println();
-
-        // subtract overtones???
-//        sums[2] -= sums[1] / 4;
-//        sums[1] -= sums[0] / 4;
+        //LOG_print("vol   "); LOG_format(volume_level*1000.0); LOG_println();
 
         // auto-level
         const float SCALE = 1.5;
@@ -138,16 +127,8 @@ Serial.println();
         sums[1] *= SCALE / volume_level;
         sums[2] *= SCALE / volume_level;
 
-        LOG_print("level "); P((int)(sums[0]*1000.0)); P((int)(sums[1]*1000.0)); P((int)(sums[2]*1000.0)); LOG_println();
+        // LOG_print("level "); LOG_format((int)(sums[0]*1000.0)); LOG_format((int)(sums[1]*1000.0)); LOG_format((int)(sums[2]*1000.0)); LOG_println();
 
-/*
-    // favorite mapping function goes here
-    Spectrum scaled = {
-      atan((ratio.lo-1)/3)  / (M_PI/2),
-      atan((ratio.med-1)/3) / (M_PI/2),
-      atan((ratio.hi-1)/3)  / (M_PI/2)
-    };
-*/
         att[0] = (att[0] * 5 + sums[0]) / 6;
         att[1] = (att[1] * 5 + sums[1]) / 6;
         att[2] = (att[2] * 5 + sums[2]) / 6;
@@ -164,9 +145,9 @@ Serial.println();
         if (1 == 0)
         {
             LOG_print("ret   ");
-            P((int) (ret.bass * 1000.0));
-            P((int) (ret.mid * 1000.0));
-            P((int) (ret.treb * 1000.0));
+            LOG_format((int) (ret.bass * 1000.0));
+            LOG_format((int) (ret.mid * 1000.0));
+            LOG_format((int) (ret.treb * 1000.0));
             LOG_println();
         }
         return true;
@@ -244,10 +225,13 @@ public:
         serial.write(0);
         serial.flush();
         delayMicroseconds(44);
-        serial.write(0);
         serial.begin(250000, SERIAL_8N2);
-        for (size_t i = 0; i < size; i++)
-            serial.write(data[i]);
+        serial.write((uint8_t)0);
+
+        serial.write(data, size);
+
+        for (size_t i=size ; i<128 ; i++)
+            serial.write((uint8_t)0);
     }
 };
 
@@ -273,6 +257,40 @@ public:
 };
 
 
+
+
+
+
+void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledData[], uint8_t rgbData[], size_t size)
+{
+    if (vibrance != 0.0)
+    {
+
+        for (size_t i=0 ; i<size ; i+=3)
+        {
+
+            float r = ledData[i], g = ledData[i+1], b = ledData[i+2];
+            float mx = (float)fmax(fmax(r,g),b);
+            float avg = (r + g + b) / 3.0f;
+            float adjust = (1-(mx - avg)) * 2 * -1 * vibrance;
+            //float adjust = -1 * vibrance;
+            // r += (mx - r) * adjust;
+            ledData[i]   = r * (1 - adjust) + adjust * mx;
+            ledData[i+1] = g * (1 - adjust) + adjust * mx;
+            ledData[i+2] = b * (1 - adjust) + adjust * mx;
+        }
+    }
+    for (size_t i=0 ; i<size ; i++)
+    {
+        int v = (int)round(pow(ledData[i], gamma) * maxBrightness * 255);
+        rgbData[i]  = (uint8_t)(v>255 ? 255 : v<0 ? 0 : v);
+    }
+}
+
+
+
+
+
 class SoundFFT sound;
 //class RenderOcto renderer(IMAGE_SIZE);
 class RenderDMX renderer(SERIAL_PORT_DMX);
@@ -288,17 +306,49 @@ void setup_()
 //    pinMode(23, OUTPUT);
 //    digitalWrite(23, HIGH);
 
+    // anlog volumn pot
+    pinMode(A1, INPUT);
+
     SERIAL_PORT_MONITOR.begin(250000);
     renderer.begin();
     sound.begin();
-    
+
+    uint8_t C = 0x20;
+    uint8_t black[3*IMAGE_SIZE] = {0};    
     uint8_t buffer[3*IMAGE_SIZE];
-    if (1)
-    for (size_t rep = 0; rep < 2; rep++)
+    
+    for (size_t rep = 0; rep < 3; rep++)
     {
+        for (size_t i=0; i < IMAGE_SIZE; )
+        {
+            if (i<IMAGE_SIZE)
+            {
+            buffer[i*3+0] = C;
+            buffer[i*3+1] = 0x00;
+            buffer[i*3+2] = 0x00;
+            }
+            i++;
+            if (i<IMAGE_SIZE)
+            {
+            buffer[i*3+0] = 0;
+            buffer[i*3+1] = C;
+            buffer[i*3+2] = 0x00;
+            }
+            i++;
+            if (i<IMAGE_SIZE)
+            {
+            buffer[i*3+0] = 0;
+            buffer[i*3+1] = 0x00;
+            buffer[i*3+2] = C;
+            }
+            i++;
+        }
+        renderer.write(buffer,3*IMAGE_SIZE);
+        delay(3000);
+
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
-            buffer[i*3+0] = 0x3f;
+            buffer[i*3+0] = C;
             buffer[i*3+1] = 0x00;
             buffer[i*3+2] = 0x00;
         }
@@ -307,7 +357,7 @@ void setup_()
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
             buffer[i*3+0] = 0x00;
-            buffer[i*3+1] = 0x3f;
+            buffer[i*3+1] = C;
             buffer[i*3+2] = 0x00;
         }
         renderer.write(buffer,3*IMAGE_SIZE);
@@ -316,7 +366,7 @@ void setup_()
         {
             buffer[i*3+0] = 0x00;
             buffer[i*3+1] = 0x00;
-            buffer[i*3+2] = 0x3f;
+            buffer[i*3+2] = C;
         }
         renderer.write(buffer,3*IMAGE_SIZE);
         delay(1000);
@@ -338,40 +388,54 @@ void loop_1() {
 
     if (0)
     {
-    Serial.print("FFT: ");
+    LOG_print("FFT: ");
     for (i=0; i<40; i++) {
       n = fft.read(i);
       if (n >= 0.01) {
-        Serial.print(n);
-        Serial.print(" ");
+        LOG_print(n);
+        LOG_print(" ");
       } else {
-        Serial.print("  -  "); // don't print "0.00"
+        LOG_print("  -  "); // don't print "0.00"
       }
     }
-    Serial.println();
+    LOG_println();
   }
   }
 }
 
+
+
+float brightness = 0.5f;
+
 void loop_()
 {
-    //Serial.println("loop");
-    //P(frame); LOG_println();
+    //LOG_println("loop");
+    //LOG_format(frame); LOG_println();
     // read sound sensor and delay
     // if we're using 1024 samples, that's about 43FPS, so shouldn't need to wait
     Spectrum spectrum;
     if (sound.next(spectrum))
     {
       frame++;
+    
+    // LOG_print("next "); LOG_println(frame);
+
       float f32values[IMAGE_SIZE*3];
-      renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
       uint8_t u8values[IMAGE_SIZE*3];
-      for (size_t i=0 ; i<IMAGE_SCALE*3 ; i++)
-      {
-          int v = (int)round(f32values[i]*255.0);
-          u8values[i] = v>255 ? 255 : v<0 ? 0 : v;
-      }
+
+    //   LOG_println("renderFrame");
+      renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
+     
+    //   LOG_println("mapToDisplay");
+      mapToDisplay(brightness, 0.0, 2.5, f32values, u8values, IMAGE_SIZE*3);     
+     
+    //   LOG_println("renderer.write");
       renderer.write(u8values, IMAGE_SIZE*3);
       //rendererDebug.write(buffer, sizeof(buffer));
+
+      int volPot = analogRead(A1);
+      brightness = 0.5 * (brightness + volPot/1023.0);
+    //   LOG_print(volPot);
     }
 }
+
