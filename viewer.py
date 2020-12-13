@@ -63,7 +63,7 @@ class App:
         positions = len(self.channels)/3
         for pos in range(0,int(positions)):
             r,g,b = self.channels[pos*3+0],self.channels[pos*3+1],self.channels[pos*3+2]
-            self._display_surf.fill(Color(r,g,b),Rect(pos*w,0,w-1,self.size[1]))
+            self._display_surf.fill(Color(r,g,b),Rect(int(pos*w),0,int(w-1),self.size[1]))
         pygame.display.update()
         self.dirty = False
 

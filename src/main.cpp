@@ -14,7 +14,7 @@
 
 #include "BeatDetect.hpp"
 #include "PCM.hpp"
-#include "Patterns.h"
+#include "Renderer.h"
 #include "MidiMix.h"
 
 uint8_t fred;
