@@ -1,8 +1,8 @@
+#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
 #include <time.h>
 #include <vector>
 #include <string>
@@ -16,8 +16,6 @@
 #include "PCM.hpp"
 #include "Renderer.h"
 #include "MidiMix.h"
-
-uint8_t fred;
 
 volatile sig_atomic_t terminate = 0;
 
@@ -73,7 +71,6 @@ void outputPPP(FILE *dev, uint8_t ledData[], size_t size)
     if (STARTBYTE != ENDBYTE)
     	fputc('\n', dev);
 }
-
 
 
 enum FORMAT
@@ -209,6 +206,7 @@ int main(int argc, char *argv[])
     PCM pcm;
     pcm.initPCM(2048);
     BeatDetect beatDetect(&pcm);
+    Renderer *renderer = createRenderer();
 
     /* The sample type to use */
     static const pa_sample_spec ss =
@@ -258,7 +256,7 @@ int main(int argc, char *argv[])
 
     while (!terminate)
     {
-            midiMix.update();
+        midiMix.update();
 
         double time;
         do
@@ -306,14 +304,7 @@ int main(int argc, char *argv[])
             spectrum.treb_att = beatDetect.treb_att;
             spectrum.vol = beatDetect.vol;
 
-            if (midiMix.ready())
-            {
-                renderFrame((float)time, &spectrum, &midiMix, ledData, 3*IMAGE_SIZE);
-            }
-            else
-            {
-                renderFrame((float)time, &spectrum, ledData, 3*IMAGE_SIZE);
-            }
+            renderer->renderFrame((float)time, &spectrum, ledData, 3*IMAGE_SIZE);
 
             uint8_t rgbData[3*IMAGE_SIZE];
             float maxBrightness = 1.0f;

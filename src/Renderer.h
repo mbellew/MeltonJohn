@@ -27,7 +27,12 @@ struct Spectrum
     float vol;
 };
 
-extern void renderFrame(float time, const Spectrum *spectrum, float buffer[], size_t size);
-extern void renderFrame(float time, const Spectrum *spectrum, MidiMix *board, float buffer[], size_t size);
+
+struct Renderer
+{
+    virtual void renderFrame(float time, const Spectrum *spectrum, float buffer[], size_t size) = 0;
+};
+
+extern Renderer *createRenderer();
 
 #endif
