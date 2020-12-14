@@ -23,5 +23,5 @@ add_executable(MeltonJohn
         src/MidiMix.h
         src/Renderer.cpp
         src/Renderer.h
-        )
+        src/config.h)
 target_link_libraries(MeltonJohn pulse pulse-simple)
