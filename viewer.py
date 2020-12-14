@@ -5,7 +5,9 @@ import sys
 import threading
 import time
 from pygame.locals import *
- 
+# from OpenGL.GL import *
+# from OpenGL.GLU import *
+
 EVENT_TEXT=USEREVENT+1
 
 
@@ -28,10 +30,12 @@ class App:
         self.size = 640*4, 400*4
         self.channels = []
         self.dirty = True
+        # self.mode = pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE
+        self.mode = pygame.HWSURFACE | pygame.RESIZABLE
 
     def on_init(self):
         pygame.init()
-        self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
+        self._display_surf = pygame.display.set_mode(self.size, self.mode)
         self._running = True
  
     def on_event(self, event):
@@ -40,16 +44,16 @@ class App:
         elif event.type==pygame.VIDEORESIZE:
             self.size = event.size
             print(self.size)
-            self._display_surf=pygame.display.set_mode(self.size,HWSURFACE|DOUBLEBUF|RESIZABLE)
+            self._display_surf=pygame.display.set_mode(self.size, self.mode)
             self.dirty = True
         elif event.type == EVENT_TEXT:
             try:
                 ch = event.message[0]
-                if ch >= '0' and ch <= '9':
+                if ch == '#':
+                    pygame.display.set_caption(event.message[1:])
+                elif ch >= '0' and ch <= '9':
                     self.channels = parse_line(event.message)
                     self.dirty = True
-                else:
-                    pygame.display.set_caption(event.message)
             except:
                 pass
 
@@ -64,7 +68,8 @@ class App:
         for pos in range(0,int(positions)):
             r,g,b = self.channels[pos*3+0],self.channels[pos*3+1],self.channels[pos*3+2]
             self._display_surf.fill(Color(r,g,b),Rect(int(pos*w),0,int(w-1),self.size[1]))
-        pygame.display.update()
+        if not (self.mode & pygame.OPENGL):
+            pygame.display.update()
         self.dirty = False
 
     

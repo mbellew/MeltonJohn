@@ -161,9 +161,9 @@ void renderFrame(float current_time, const Spectrum *beatDetect, MidiMix *midi_,
         currentPattern = changeTo;
         context = PatternContext();
         currentPattern->setup(context);
-        fprintf(stderr, "%s\n", currentPattern->name());
-        if (device && device != stdout)
-            fprintf(device, "%s\n", currentPattern->name());
+        fprintf(stdout, "#%s\n", currentPattern->name());
+//        if (device && device != stdout)
+//            fprintf(device, "#%s\n", currentPattern->name());
         preset_start_time = current_time;
     }
     vol_old = beatDetect->vol;
@@ -186,28 +186,7 @@ void renderFrame(float current_time, const Spectrum *beatDetect, MidiMix *midi_,
     frame.lastbeat = mybeat.lastbeat;
     frame.interval = mybeat.interval;
 
-    pattern->per_frame(frame);
-    for (int i = 0; i < IMAGE_SIZE; i++)
-    {
-        PointContext &pt = frame.points[i];
-        pt.pos = i;
-        pt.rad = ((double) i) / (IMAGE_SIZE - 1) - 0.5;
-        pt.sx = frame.sx;
-        pt.cx = frame.cx;
-        pt.dx = frame.dx;
-    }
-    for (int i = 0; i < IMAGE_SIZE; i++)
-    {
-        pattern->per_point(frame, frame.points[i]);
-    }
-    // convert sx,cx to dx
-    for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
-    {
-        double center = IN(-0.5, 0.5, frame.points[i].cx);
-        frame.points[i].dx += (frame.points[i].rad - center) * (frame.points[i].sx - 1.0);
-    }
-    //fprintf(stderr,"cx %f sx %f wrap %s\n", (double)frame.cx, (double)frame.sx, frame.dx_wrap?"true":"false");
-
+    pattern->start_frame(frame);
     pattern->update(frame, work);
     pattern->draw(frame, work);
     stash.copyFrom(work);
@@ -229,16 +208,13 @@ void loadAllPatterns()
     patterns[countOfPatterns++] = createPebbles();
     // patterns[countOfPatterns++] = new BigWhiteLight2());
     patterns[countOfPatterns++] = createSwayBeat();
+    patterns[countOfPatterns++] = createEqNew();
 }
+
+extern Pattern *createTest();
+extern Pattern *createEqNew();
 
 void loadPatterns()
 {
     loadAllPatterns();
-    if (nullptr != midi)
-    {
-        midiPatterns[countOfMidiPatterns++] = createMidiBorderPattern(midi);
-        midiPatterns[countOfMidiPatterns++] = createMidiFractalPattern(midi);
-        midiPatterns[countOfMidiPatterns++] = createMidiEqualizerPattern(midi);
-        midiPatterns[countOfMidiPatterns++] = createMidiOneBorderPattern(midi);
-    }
 }

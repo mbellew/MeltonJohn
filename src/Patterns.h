@@ -209,11 +209,12 @@ union Color
         saturate(arr, intensity);
     }
 
-    void constrain()
+    Color &constrain()
     {
         rgba.r = ::constrain(rgba.r);
         rgba.g = ::constrain(rgba.g);
         rgba.b = ::constrain(rgba.b);
+        return *this;
     }
 
     void constrain2()
@@ -733,8 +734,14 @@ public:
 
     // frame methods
 
+    // wrapper for per_frame() and per_points()
+    virtual void start_frame(PatternContext &ctx) = 0;
+
     // update private variables
     virtual void per_frame(PatternContext &ctx) = 0;
+
+    virtual void per_points(PatternContext &ctx, PointContext &pt)
+    {};
 
     virtual void per_point(PatternContext &ctx, PointContext &pt)
     {};
@@ -756,6 +763,13 @@ public:
 
 /* impl */
 
+/*
+ * Base class for Pattern with one RGB layer.  Most subclasses don't keep must state.
+ * They use the PatternContext and Image that are provided to carry state from one frame to next.
+ *
+ *  If you don't follow this you probably need to keep keep your own "context" and "image" data.
+ */
+
 class AbstractPattern : public Pattern
 {
 protected:
@@ -770,6 +784,30 @@ public:
     const char *name() const override
     {
         return pattern_name;
+    }
+
+    void start_frame(PatternContext &ctx) override
+    {
+        this->per_frame(ctx);
+        for (int i = 0; i < IMAGE_SIZE; i++)
+        {
+            PointContext &pt = ctx.points[i];
+            pt.pos = i;
+            pt.rad = ((double) i) / (IMAGE_SIZE - 1) - 0.5;
+            pt.sx = ctx.sx;
+            pt.cx = ctx.cx;
+            pt.dx = ctx.dx;
+        }
+        for (int i = 0; i < IMAGE_SIZE; i++)
+        {
+            this->per_point(ctx, ctx.points[i]);
+        }
+        // convert sx,cx to dx
+        for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
+        {
+            double center = IN(-0.5, 0.5, ctx.points[i].cx);
+            ctx.points[i].dx += (ctx.points[i].rad - center) * (ctx.points[i].sx - 1.0);
+        }
     }
 
     void per_point(PatternContext &ctx, PointContext &pt) override
@@ -813,12 +851,11 @@ public:
 };
 
 
+extern PaletteGenerator *getRandomPalette();
 
 /* factories */
-extern Pattern * createMidiBorderPattern(MidiMix *);
-extern Pattern * createMidiFractalPattern(MidiMix *);
-extern Pattern * createMidiEqualizerPattern(MidiMix *);
-extern Pattern * createMidiOneBorderPattern(MidiMix *);
+
+/* Patterns.cpp */
 extern Pattern *createWaterfall();
 extern Pattern *createGreenFlash();
 extern  Pattern *createFractal2();
@@ -828,5 +865,14 @@ extern Pattern *createEqualizer();
 extern Pattern *createEKG();
 extern Pattern *createPebbles();
 extern Pattern *createSwayBeat();
+
+/* MidiPatterns.cpp (integrates with Midi controller) */
+extern Pattern * createMidiBorderPattern(MidiMix *);
+extern Pattern * createMidiFractalPattern(MidiMix *);
+extern Pattern * createMidiEqualizerPattern(MidiMix *);
+extern Pattern * createMidiOneBorderPattern(MidiMix *);
+
+/* MultiLayerPatterns.cpp */
+extern Pattern * createEqNew();
 
 #endif

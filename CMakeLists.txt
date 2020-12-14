@@ -14,6 +14,7 @@ add_executable(MeltonJohn
         src/fftsg.hpp
         src/main.cpp
         src/MidiPatterns.cpp
+        src/MultiLayerPatterns.cpp
         src/Patterns.h
         src/Patterns.cpp
         src/PCM.cpp

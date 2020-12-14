@@ -75,6 +75,11 @@ PaletteGenerator *palettes[] =
 const unsigned int paletteCount = sizeof(palettes) / sizeof(void *);
 
 
+PaletteGenerator *getRandomPalette()
+{
+    return palettes[randomInt(paletteCount)];
+}
+
 
 
 
