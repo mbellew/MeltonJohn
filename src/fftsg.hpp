@@ -29,7 +29,7 @@
 #ifndef _FFTSG_H
 #define _FFTSG_H
 
-extern void rdft(int n, int isgn, double *a, int *ip, double *w);
+extern void rdft(int n, int isgn, float *a, int *ip, float *w);
 
 #endif /** !_FFTSG_H */
 

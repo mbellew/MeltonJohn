@@ -1,10 +1,3 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
-//#include <string>
-//#include <vector>
-#include "MidiMix.h"
 #include "Renderer.h"
 #include "Patterns.h"
 
@@ -88,7 +81,7 @@ class Waterfall : public AbstractPattern
     ColorGenerator *lb_color;
     ColorGenerator *rb_color;
     SimpleGenerator cx;
-    PaletteGenerator *palette;
+    PaletteGenerator *palette = nullptr;
     bool option = false, option_set = false;
 
 public:
@@ -108,10 +101,10 @@ public:
         );
     }
 
-    Waterfall(bool opt) : Waterfall()
+    explicit Waterfall(bool opt) : Waterfall()
     {
         option = opt;
-        option_set = 1;
+        option_set = true;
     }
 
     void setup(PatternContext &ctx) override
@@ -128,19 +121,19 @@ public:
     void per_frame(PatternContext &ctx) override
     {
         ctx.ob_left = palette->get(7 * (int) ctx.time);
-        ctx.ob_left *= 0.5 + ctx.treb / 2.0;
+        ctx.ob_left *= 0.5f + ctx.treb / 2.0f;
         ctx.ib_left = ctx.ob_left;
         ctx.ib_left.complement();
 
         //ctx.ob_right = rb_color->next( ctx.time );
         ctx.ob_right = palette->get(5 * (int) (ctx.time + 2.0));
-        ctx.ob_right *= 0.5 + ctx.bass / 2.0;
+        ctx.ob_right *= 0.5f + ctx.bass / 2.0f;
         ctx.ib_right = ctx.ob_right;
         ctx.ib_right.complement();
 
         ctx.cx = cx.next(ctx.time);
 
-        ctx.sx = 0.99 - 0.1 * ctx.bass;
+        ctx.sx = 0.99f - 0.1f * ctx.bass;
         //fprintf(stderr,"%lf\n", ctx.sx);
     }
 
@@ -148,7 +141,7 @@ public:
     {
         if (option)
         {
-            double s = sin(ctx.time / 15.0);
+            float s = sinf(ctx.time / 15.0f);
             image.rotate(s);
         }
     }
@@ -159,7 +152,8 @@ class GreenFlash : public AbstractPattern
 {
     bool option1, option2, wipe, option_set;
 public:
-    GreenFlash() : AbstractPattern((const char *) "green flash"), option1(false), option2(false), wipe(false)
+    GreenFlash() : AbstractPattern((const char *) "green flash"),
+        option1(false), option2(false), wipe(false), option_set(false)
     {}
 
     GreenFlash(bool opt1, bool opt2) : GreenFlash()
@@ -193,38 +187,38 @@ public:
         //Color c(ctx.treb+ctx.mid,ctx.mid,0); // yellow and red
         //Color c(ctx.treb,ctx.treb,ctx.mid); // yellow and blue
         Color c, bg;
-        double d = ctx.mid - ctx.treb;
-        double m = ctx.mid + d;
-        double t = ctx.treb - d;
-        if (t > 1.0)
+        float d = ctx.mid - ctx.treb;
+        float m = ctx.mid + d;
+        float t = ctx.treb - d;
+        if (t > 1.0f)
         {
             m = m / t;
-            t = 1.0;
-        } else if (m > 1.0)
+            t = 1.0f;
+        } else if (m > 1.0f)
         {
             t = t / m;
-            m = 1.0;
+            m = 1.0f;
         }
         if (!option2)
         {
             //c = Color(ctx.treb_att,ctx.mid_att,ctx.treb_att);
-            Color c1 = Color(0.0, 1.0, 0.0); // green
-            Color c2 = Color(1.0, 0.0, 1.0); // purple
+            Color c1 = Color(0.0f, 1.0f, 0.0f); // green
+            Color c2 = Color(1.0f, 0.0f, 1.0f); // purple
             c = c1 * m + c2 * t;
         } // green and purple
         else
         {
             // c = Color(1.0, 1.0-t, 1.0-m); // red
-            double v = MAX(ctx.vol, ctx.vol_att);
-            c = Color(1.0, 1.0 - v / 2, 1.0 - v / 2); // red
-            bg = Color(1.0, 1.0, 1.0);
+            float v = MAX(ctx.vol, ctx.vol_att);
+            c = Color(1.0f, 1.0f - v / 2.0f, 1.0f - v / 2.0f); // red
+            bg = Color(1.0f, 1.0f, 1.0f);
         }
         c.constrain2();
         //Color c(ctx.treb,ctx.mid,ctx.bass);
         //int v = ctx.vol;// / MAX(1,ctx.vol_att);
         //int bass = ctx.bass; // MAX(ctx.bass_att, ctx.bass);
-        double bass = MAX(ctx.bass_att, ctx.bass);
-        int w = (int)MIN(IMAGE_SIZE / 2 - 1, (int) round(bass * 3));
+        float bass = MAX(ctx.bass_att, ctx.bass);
+        int w = (int)MIN((int)(IMAGE_SIZE / 2 - 1), (int)roundf(bass * 3.0f));
         image.setRGB(IMAGE_SIZE / 2 - 1 - w, c);
         image.setRGB(IMAGE_SIZE / 2 + w, c);
 
@@ -247,7 +241,7 @@ class Fractal : public AbstractPattern
     // SimpleGenerator g;
     // SimpleGenerator b;
     Spirograph x;
-    double ptime, ctime;
+    float ptime, ctime;
     bool option, option_set;
 
 public:
@@ -255,9 +249,9 @@ public:
     {
         option = randomBool();
         color = new ComboGenerator(
-                new SimpleGenerator(0.2, 0.8, 0.5 * 5.5),
-                new SimpleGenerator(0.2, 0.8, 0.5 * 6.5),
-                new SimpleGenerator(0.2, 0.8, 0.5 * 7.5)
+                new SimpleGenerator(0.2f, 0.8f, 0.5f * 5.5f),
+                new SimpleGenerator(0.2f, 0.8f, 0.5f * 6.5f),
+                new SimpleGenerator(0.2f, 0.8f, 0.5f * 7.5f)
         );
 
         SimpleGenerator a(6, IMAGE_SIZE - 1 - 6, 13);
@@ -288,7 +282,7 @@ public:
         ctime += ctx.dtime;
         if (ctx.treb > 2.5 * ctx.treb_att)
             ctime += 21;
-        ctx.fade = constrain(ctx.fade + 0.4 * ctx.bass / (ctx.bass_att + 0.25));
+        ctx.fade = constrain(ctx.fade + 0.4f * ctx.bass / (ctx.bass_att + 0.25f));
     }
 
     // void per_point(PatternContext &ctx, PointContext &pt)
@@ -325,15 +319,15 @@ public:
     {
         Color c;
         if (option)
-            c = Color(1.0, 1.0, 1.0);
+            c = Color(1.0f, 1.0f, 1.0f);
         else
         {
             c = color->next(ctime);
             c.saturate(1.0);
         }
-        double posx = x.next(ptime);
-        image.setRGB((int) floor(posx), 0, 0, 0);
-        image.setRGB((int) ceil(posx), 0, 0, 0);
+        float posx = x.next(ptime);
+        image.setRGB((int) floorf(posx), BLACK);
+        image.setRGB((int) ceilf(posx), BLACK);
         image.addRGB(posx, c);
     }
 
@@ -347,18 +341,18 @@ class Fractal2 : public AbstractPattern
 {
     ColorGenerator *color;
     Spirograph x;
-    double ptime, ctime;
-    bool option, option_set;
-    double stretch;
+    float ptime=0.0f, ctime=0.0f;
+    bool option=false, option_set=false;
+    float stretch=2.0f;
 
 public:
     Fractal2() : AbstractPattern("fractal"), x()
     {
         option = randomBool();
         color = new ComboGenerator(
-                new SimpleGenerator(0.2, 0.8, 5.5),
-                new SimpleGenerator(0.2, 0.8, 6.5),
-                new SimpleGenerator(0.2, 0.8, 7.5)
+                new SimpleGenerator(0.2f, 0.8f, 5.5f),
+                new SimpleGenerator(0.2f, 0.8f, 6.5f),
+                new SimpleGenerator(0.2f, 0.8f, 7.5f)
         );
 
         SimpleGenerator a(6, IMAGE_SIZE - 1 - 6, 13);
@@ -403,15 +397,15 @@ public:
         {
             stretch = 2.0;
             if (ctx.time < ctx.lastbeat + 0.2)
-                stretch = 1.5 + 0.5 * MIN(1.0, ctx.bass / ctx.bass_att);
+                stretch = 1.5f + 0.5f * MIN(1.0, ctx.bass / ctx.bass_att);
             ctx.cx = 0.5;
             ctx.fade = 0.85;
         } else
         {
             stretch = 2.0;
             ctx.cx = 0.0;
-            ctx.fade = constrain(0.6 + 0.4* ctx.bass / (ctx.bass_att + 0.25));
-            c = c * constrain(0.7 + 0.3 * ctx.bass);
+            ctx.fade = constrain(0.6f + 0.4f * ctx.bass / (ctx.bass_att + 0.25f));
+            c = c * constrain(0.7f + 0.3f * ctx.bass);
         }
 
         c.constrain2();
@@ -421,15 +415,15 @@ public:
     void per_point(PatternContext &ctx, PointContext &pt) override
     {
         // mimic stretch/wrap using dx and dx_wrap
-        //double dist = pt.rad - (ctx.cx-0.5);
+        //float dist = pt.rad - (ctx.cx-0.5);
         //pt.dx = -(dist * (stretch-1));
         //return;
         if (option)
         {
-            pt.dx = -(pt.rad * (stretch - 1));
+            pt.dx = -(pt.rad * (stretch - 1.0f));
         } else
         {
-            double src = (pt.rad + 0.5) * 2;
+            float src = (pt.rad + 0.5f) * 2.0f;
             pt.dx = pt.rad - src;
         }
     };
@@ -442,7 +436,7 @@ public:
             AbstractPattern::draw(ctx, image);
             return;
         }
-        double posx = x.next(ptime);
+        float posx = x.next(ptime);
         int pos = (int) round(posx);
         // image.setRGB(constrain(pos-1,0,IMAGE_SIZE-1), BLACK);
         // image.setRGB(constrain(pos+1,0,IMAGE_SIZE-1), BLACK);
@@ -463,8 +457,8 @@ class Diffusion : public AbstractPattern
 {
 public:
     ColorGenerator *color;
-    double scale = 0.0;
-    double amplitude = 0.0;
+    float scale = 0.0f;
+    float amplitude = 0.0f;
 
     bool option;
     bool option_set;
@@ -473,9 +467,9 @@ public:
     {
         option = randomBool();
         color = new ComboGenerator(
-                new SimpleGenerator(0.1, 0.7, 2 * M_PI / 1.517),
-                new SimpleGenerator(0.1, 0.7, 2 * M_PI / 1.088),
-                new SimpleGenerator(0.1, 0.7, 2 * M_PI / 1.037)
+                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.517f),
+                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.088f),
+                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.037f)
         );
     }
 
@@ -491,34 +485,34 @@ public:
             option = !option;
         ctx.fade = 1.0;
         ctx.sx = 1.03;
-        ctx.dx_wrap = 1;
+        ctx.dx_wrap = true;
         snprintf(pattern_name, sizeof(pattern_name), "%s %s", "diffusion", option ? "true" : "false");
 
     }
 
     void per_frame(PatternContext &ctx) override
     {
-        scale = (1.2 + 2 * ctx.bass_att) * 2 * M_PI;  // waviness
+        scale = (1.2f + 2.0f * ctx.bass_att) * 2 * M_PIf32;  // waviness
         if (option)
-            amplitude = 0.3 * ctx.treb_att * sin(ctx.time * 1.5); // speed and dir
+            amplitude = 0.3f * ctx.treb_att * sinf(ctx.time * 1.5f); // speed and dir
         else
-            amplitude = 0.3 * ctx.treb_att;
+            amplitude = 0.3f * ctx.treb_att;
     }
 
     void per_point(PatternContext &ctx, PointContext &pt) override
     {
-        double x = scale * pt.rad;
-        double wave_time = 0.0;
-//        pt.sx = pt.sx + sin(x + wave_time*ctx.time) * amplitude;
-        pt.sx = pt.sx + sin(fabs(x) + wave_time * ctx.time) * amplitude;
-        // pt.sx = pt.sx + sin(x + wave_time*ctx.time) * amplitude;
+        float x = scale * pt.rad;
+        float wave_time = 0.0;
+//        pt.sx = pt.sx + sinf(x + wave_time*ctx.time) * amplitude;
+        pt.sx = pt.sx + sinf(fabs(x) + wave_time * ctx.time) * amplitude;
+        // pt.sx = pt.sx + sinf(x + wave_time*ctx.time) * amplitude;
     }
 
     void draw(PatternContext &ctx, Image &image) override
     {
-        double bass = constrain(MAX(ctx.bass, ctx.bass_att) - 1.3);
-        double mid = constrain(MAX(ctx.mid, ctx.mid_att) - 1.3);
-        double treb = constrain(MAX(ctx.treb, ctx.treb_att) - 1.3);
+        float bass = constrain(MAX(ctx.bass, ctx.bass_att) - 1.3f);
+        float mid = constrain(MAX(ctx.mid, ctx.mid_att) - 1.3f);
+        float treb = constrain(MAX(ctx.treb, ctx.treb_att) - 1.3f);
         Color c = color->next(ctx.time * 2);
         Color c1, c2;
 
@@ -543,8 +537,8 @@ class Diffusion2 : public AbstractPattern
 {
 public:
     ColorGenerator *color;
-    double scale = 0;
-    double amplitude = 0;
+    float scale = 0;
+    float amplitude = 0;
 
     bool option;
     bool option_set;
@@ -553,16 +547,16 @@ public:
     {
         option = randomBool();
         color = new ComboGenerator(
-                new SimpleGenerator(0.1, 0.7, 2 * M_PI / 1.517),
-                new SimpleGenerator(0.1, 0.7, 2 * M_PI / 1.088),
-                new SimpleGenerator(0.1, 0.7, 2 * M_PI / 1.037)
+                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.517f),
+                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.088f),
+                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.037f)
         );
     }
 
     explicit Diffusion2(bool _option) : Diffusion2()
     {
         option = _option;
-        option_set = 1;
+        option_set = true;
     }
 
     void setup(PatternContext &ctx) override
@@ -571,35 +565,35 @@ public:
             option = !option;
         ctx.fade = 1.0;
         ctx.sx = 1.03;
-        ctx.dx_wrap = 1;
+        ctx.dx_wrap = true;
         snprintf(pattern_name, sizeof(pattern_name), "%s %s", "diffusion2", option ? "true" : "false");
     }
 
     void per_frame(PatternContext &ctx) override
     {
-        scale = (1.2 + 2 * ctx.bass_att) * 2 * M_PI;  // waviness
-        amplitude = 0.3 * ctx.treb_att;
+        scale = (1.2f + 2 * ctx.bass_att) * 2 * M_PIf32;  // waviness
+        amplitude = 0.3f * ctx.treb_att;
     }
 
     void per_point(PatternContext &ctx, PointContext &pt) override
     {
-        double x = scale * pt.rad;
-//        double wave_time = 0.0;
-        double modifier = 1.0 + (ctx.bass - ctx.bass_att) * 0.2;
-//        pt.sx = pt.sx + sin(x + wave_time*ctx.time) * amplitude;
-        pt.sx = pt.sx + sin(fabs(x) * modifier) * amplitude;
-        // pt.sx = pt.sx + sin(x + wave_time*ctx.time) * amplitude;
+        float x = scale * pt.rad;
+//        float wave_time = 0.0;
+        float modifier = 1.0f + (ctx.bass - ctx.bass_att) * 0.2f;
+//        pt.sx = pt.sx + sinf(x + wave_time*ctx.time) * amplitude;
+        pt.sx = pt.sx + sinf(fabs(x) * modifier) * amplitude;
+        // pt.sx = pt.sx + sinf(x + wave_time*ctx.time) * amplitude;
     }
 
     void draw(PatternContext &ctx, Image &image) override
     {
-        double bass = constrain(MAX(ctx.bass, ctx.bass_att) - 1.3);
-        double mid = constrain(MAX(ctx.mid, ctx.mid_att) - 1.3);
-        double treb = constrain(MAX(ctx.treb, ctx.treb_att) - 1.3);
-        Color c = color->next(ctx.time * 2);
+        float bass = constrain(MAX(ctx.bass, ctx.bass_att) - 1.3f);
+        float mid = constrain(MAX(ctx.mid, ctx.mid_att) - 1.3f);
+        float treb = constrain(MAX(ctx.treb, ctx.treb_att) - 1.3f);
+        Color c = color->next(ctx.time * 2.0f);
         Color c1, c2;
 
-        c1 = c + Color(mid, bass, treb) * 0.4;
+        c1 = c + Color(mid, bass, treb) * 0.4f;
         c2 = c1;
         image.setRGB(IMAGE_SIZE / 2 - 1, c1);
         image.setRGB(IMAGE_SIZE / 2, c2);
@@ -643,13 +637,13 @@ public:
 
         if (!option)
         {
-            c1 = Color(1.0, 0.0, 0.0); // red
-            c2 = Color(0.0, 1.0, 0.0); // green
-            cmix = Color(1.0, 1.0, 0.0, 0.5);
+            c1 = RED;
+            c2 = GREEN;
+            cmix = Color(1.0f, 1.0f, 0.0f, 0.5f);
             //cmix = WHITE;
         } else
         {
-            int index = randomInt(paletteCount);
+            size_t index = randomInt(paletteCount);
             //fprintf(stderr, "palette %d\n", index);
             PaletteGenerator *p = palettes[index];
             // c1 = Color(0.0, 0.0, 1.0);    /Color/ blue
@@ -668,16 +662,16 @@ public:
 
     void per_frame(PatternContext &ctx) override
     {
-        double bass = MAX(ctx.bass, ctx.bass_att);
+        float bass = MAX(ctx.bass, ctx.bass_att);
         posB = (int)(bass * bass * (IMAGE_SCALE / 2));
         posB = constrain(posB, 0, IMAGE_SIZE - 1);
 
-        double treb = MAX(ctx.treb, ctx.treb_att);
+        float treb = MAX(ctx.treb, ctx.treb_att);
         posT = (int)(treb * treb * (IMAGE_SCALE / 2));
         posT = constrain(posT, 0, IMAGE_SIZE - 1);
         posT = IMAGE_SIZE - 1 - posT;
 
-        ctx.cx = ((posB + posT) / 2.0) / (IMAGE_SIZE - 1);
+        ctx.cx = ((posB + posT) / 2.0f) / (IMAGE_SIZE - 1);
 
         //fprintf(stderr, "[%0.3f %0.3f]\n", bass, treb);
         //fprintf(stderr, "(%f %f)\n", posT, posB);
@@ -744,7 +738,7 @@ class EKG : public AbstractPattern
 {
     Color colorLast;
     int posLast;
-    double speed;
+    float speed;
     bool option;
     bool option_set;
 
@@ -778,9 +772,9 @@ public:
     {
         if (option)
             // ctx.dx = 0.1*(ctx.treb-0.5);
-            ctx.dx = 0.1 * (ctx.vol - ctx.vol_att);
+            ctx.dx = 0.1f * (ctx.vol - ctx.vol_att);
         else
-            ctx.dx = 0.08 * (ctx.treb - ctx.bass);
+            ctx.dx = 0.08f * (ctx.treb - ctx.bass);
     }
 
     void per_point(PatternContext &ctx, PointContext &pt) override
@@ -795,11 +789,11 @@ public:
     {
         int pos = ((int) round(ctx.time * speed * IMAGE_SIZE) % IMAGE_SIZE);
         Color black;
-        Color white(1.0, 1.0, 1.0);
+        Color white(1.0f, 1.0f, 1.0f);
 
-        double bass = ctx.bass - ctx.bass_att;
-        double mid = ctx.mid - ctx.mid_att;
-        double treb = ctx.treb - ctx.treb_att;
+        float bass = ctx.bass - ctx.bass_att;
+        float mid = ctx.mid - ctx.mid_att;
+        float treb = ctx.treb - ctx.treb_att;
         Color c;
         // c = white * 0.2 + white * 0.5 * ctx.bass; // Color(mid,bass,treb) * 0.4;
         // c = white * 0.2 + Color(bass,mid,treb) * 0.4;
@@ -827,7 +821,7 @@ public:
 class EKG2 : public AbstractPattern
 {
     Color colorLast;
-    double pos;
+    float pos;
     bool option;
     bool option_set;
     PaletteGenerator *palette;
@@ -839,21 +833,21 @@ public:
     {
         option = randomBool();
         //  color = new ComboGenerator(
-        //     new SimpleGenerator(0.1, 0.7, 2*M_PI/1.517),
-        //     new SimpleGenerator(0.1, 0.7, 2*M_PI/1.088),
-        //     new SimpleGenerator(0.1, 0.7, 2*M_PI/1.037)
+        //     new SimpleGenerator(0.1, 0.7, 2*M_PIf32/1.517),
+        //     new SimpleGenerator(0.1, 0.7, 2*M_PIf32/1.088),
+        //     new SimpleGenerator(0.1, 0.7, 2*M_PIf32/1.037)
         // );
     }
 
     EKG2(bool _option) : EKG2()
     {
         option = _option;
-        option_set = 1;
+        option_set = true;
     }
 
     void setup(PatternContext &ctx) override
     {
-        int p = randomInt(paletteCount);
+        size_t p = randomInt(paletteCount);
         palette = palettes[p];
         if (!option_set)
             option = !option;
@@ -862,20 +856,19 @@ public:
         ctx.dx_wrap = false;
         ctx.ob_size = 1;
         ctx.ob_left = BLACK;
-        snprintf(pattern_name, sizeof(pattern_name), "%s %s (%d)", "ekg2", option ? "true" : "false", p);
-
+        snprintf(pattern_name, sizeof(pattern_name), "%s %s (%d)", "ekg2", option ? "true" : "false", (int)p);
     }
 
     void per_frame(PatternContext &ctx) override
     {
         beatCount += (ctx.beat ? 1 : 0);
-        pos += 0.002 * (1.0 + ctx.treb);
+        pos += 0.002f * (1.0f + ctx.treb);
 
         ctx.dx = -0.005; // * (ctx.treb - ctx.bass);
         //ctx.fade = 0.95;
         if (ctx.time < ctx.lastbeat + 0.3)
         {
-            ctx.dx -= 0.03 * ctx.bass;
+            ctx.dx -= 0.03f * ctx.bass;
             //ctx.fade = 1.0;
         }
 
@@ -883,14 +876,14 @@ public:
         if (option)
         {
             c = WHITE;
-            double v = MAX(ctx.vol_att, ctx.vol);
-            double s = MIN(1.0, 0.55 + 0.3 * v);
+            float v = MAX(ctx.vol_att, ctx.vol);
+            float s = MIN(1.0f, 0.55f + 0.3f * v);
             c.saturate(s);
         }
         {
             c = palette->get(beatCount);
-            double v = MAX(ctx.vol_att, ctx.vol);
-            double s = MIN(1.0, 0.55 + 0.3 * v);
+            float v = MAX(ctx.vol_att, ctx.vol);
+            float s = MIN(1.0f, 0.55f + 0.3f * v);
             c.saturate(s);
         }
         ctx.ob_right = c;
@@ -912,7 +905,7 @@ public:
 //             c = color->next((double)ctx.time);
             c = palette->get((int)beatCount);
         }
-        double v = MAX(ctx.vol_att, ctx.vol);
+        float v = MAX(ctx.vol_att, ctx.vol);
         c.saturate(MIN(1.0,0.4 + v/2.0));
 
         int p = ((int)round(pos)) % IMAGE_SIZE;
@@ -923,7 +916,7 @@ public:
 
     void effects(PatternContext &ctx, Image &image) override
     {
-        double p = fmod(-pos, 1.0);
+        float p = fmod(-pos, 1.0);
         image.rotate(p);
     }
 };
@@ -932,16 +925,16 @@ public:
 class Pebbles : public AbstractPattern
 {
     bool option, option_set;
-    double vol_mean;
-    double last_cx;
+    float vol_mean;
+    float last_cx;
     Generator *r;
     Generator *g;
     PaletteGenerator *palette;
     int beatCount = 0;
     unsigned palette_color = 0;
 
-// per_frame_1=wave_r = 0.5 + 0.5*sin(1.6*time);
-// per_frame_2=wave_g = 0.5 + 0.5*sin(4.1*time);
+// per_frame_1=wave_r = 0.5 + 0.5*sinf(1.6*time);
+// per_frame_2=wave_g = 0.5 + 0.5*sinf(4.1*time);
 // per_frame_3=wave_b = -1 + (1-wave_r + 1-wave_g);
 
 public:
@@ -966,7 +959,7 @@ public:
             option = !option;
         ctx.fade = 0.97;
         ctx.blur = !option;
-        ctx.fade_to = option ? Color() : Color(1.0, 1.0, 1.0);
+        ctx.fade_to = option ? Color() : WHITE;
         ctx.dx_wrap = true;
         snprintf(pattern_name, sizeof(pattern_name), "%s %s", "pebbles", option ? "true" : "false");
     }
@@ -979,21 +972,21 @@ public:
         {
             beatCount++;
             palette_color = randomInt(RAND_MAX);
-            last_cx = randomDouble();
+            last_cx = randomFloat();
         }
         ctx.cx = last_cx;
     }
 
     void per_point(PatternContext &ctx, PointContext &pt) override
     {
-        double f = (ctx.time - ctx.lastbeat) / ctx.interval;
-        double dist = pt.rad - (ctx.cx - 0.5);
-        double radius = 0.1 + f / 2.0;
+        float f = (ctx.time - ctx.lastbeat) / ctx.interval;
+        float dist = pt.rad - (ctx.cx - 0.5f);
+        float radius = 0.1f + f / 2.0f;
 
         pt.sx = 1.0;
         if (option || fabs(dist) < radius)
         {
-            double speed = ctx.vol / 40;
+            float speed = ctx.vol / 40;
             if (dist < 0)
                 pt.dx = -1 * speed;
             else
@@ -1003,7 +996,7 @@ public:
 
     void draw(PatternContext &ctx, Image &image) override
     {
-        double f = (ctx.time - ctx.lastbeat) / ctx.interval;
+        float f = (ctx.time - ctx.lastbeat) / ctx.interval;
         if (f < 0.3)
         {
             Color c = palette->get(palette_color);
@@ -1038,17 +1031,17 @@ public:
 
     void per_frame(PatternContext &ctx) override
     {
-        double v = ctx.vol_att / 2;
-        // double t = constrain(ctx.treb*0.8 - ctx.bass);
-        // double b = constrain(ctx.bass - ctx.treb*0.8);
+        float v = ctx.vol_att / 2;
+        // float t = constrain(ctx.treb*0.8 - ctx.bass);
+        // float b = constrain(ctx.bass - ctx.treb*0.8);
         // t = constrain(t / ctx.vol - 1.5);
         // b = constrain(b / ctx.vol - 1.5);
-//        double vol = (ctx.bass * 2 + ctx.mid + ctx.treb * 2) / 5.0;
-        double t = constrain(ctx.treb / ctx.vol - 2.1);
-        double b = constrain(ctx.bass / ctx.vol - 2.1);
-        Color c = Color(1.0 - b, 1.0 - t - b, 1.0 - t);
+//        float vol = (ctx.bass * 2 + ctx.mid + ctx.treb * 2) / 5.0;
+        float t = constrain(ctx.treb / ctx.vol - 2.1);
+        float b = constrain(ctx.bass / ctx.vol - 2.1);
+        Color c = Color(1.0f - b, 1.0f - t - b, 1.0f - t);
         c.constrain();
-        double s = MIN(1.0, 0.3 + v);
+        float s = MIN(1.0f, 0.3f + v);
         if (!ctx.beat)
             c = c * s;
         ctx.ib_size = (unsigned)ctx.beat;
@@ -1065,8 +1058,8 @@ public:
 
 class BigWhiteLight2 : public AbstractPattern
 {
-    double start_time = 0.0;
-    double prev_time = 0.0;
+    float start_time = 0.0;
+    float prev_time = 0.0;
     bool dir = 0;
     bool option = 0;
 public:
@@ -1102,17 +1095,17 @@ public:
             prev_time = ctx.time;
         }
 
-        double v = ctx.vol_att / 2;
-        // double t = constrain(ctx.treb*0.8 - ctx.bass);
-        // double b = constrain(ctx.bass - ctx.treb*0.8);
+        float v = ctx.vol_att / 2;
+        // float t = constrain(ctx.treb*0.8 - ctx.bass);
+        // float b = constrain(ctx.bass - ctx.treb*0.8);
         // t = constrain(t / ctx.vol - 1.5);
         // b = constrain(b / ctx.vol - 1.5);
-        //double vol = (ctx.bass * 2 + ctx.mid + ctx.treb * 2) / 5.0;
-        double t = constrain(ctx.treb / ctx.vol - 2.1);
-        double b = constrain(ctx.bass / ctx.vol - 2.1);
-        Color c = Color(1.0 - b, 1.0 - t - b, 1.0 - t);
+        //float vol = (ctx.bass * 2 + ctx.mid + ctx.treb * 2) / 5.0;
+        float t = constrain(ctx.treb / ctx.vol - 2.1f);
+        float b = constrain(ctx.bass / ctx.vol - 2.1f);
+        Color c = Color(1.0f - b, 1.0f - t - b, 1.0f - t);
         c.constrain();
-        double s = MIN(1.0, 0.3 + v);
+        float s = MIN(1.0f, 0.3f + v);
         if (!ctx.beat)
             c = c * s;
         ctx.ib_size = (unsigned)ctx.beat;
@@ -1121,16 +1114,16 @@ public:
 
     void per_point(PatternContext &ctx, PointContext &pt) override
     {
-        pt.cx = option ? 0.5 : pt.rad < 0.0 ? 1.0 : 0.0;
-        double v = cos(M_PI * pt.rad);  // 0->1->0
+        pt.cx = option ? 0.5f : pt.rad < 0.0f ? 1.0f : 0.0f;
+        float v = cosf(M_PIf32 * pt.rad);  // 0->1->0
         //pt.sx = 0.9 + v - ctx.vol_att/10.0;
-        pt.sx = 1.04 - v * 0.2 - (ctx.vol_att - 1) * 0.1;
+        pt.sx = 1.04f - v * 0.2f - (ctx.vol_att - 1) * 0.1f;
     }
 
     void effects(PatternContext &ctx, Image &image) override
     {
         if (dir)
-            image.rotate(0.5);
+            image.rotate(0.5f);
     }
 };
 
@@ -1139,10 +1132,10 @@ class SwayBeat : public AbstractPattern
 {
     PaletteGenerator *palette = nullptr;
     unsigned beatCount = 0;
-    bool dir = 0;
-    bool option = 0;
+    bool dir = false;
+    bool option = false;
     Color left = WHITE, right = WHITE;
-    double mytime = 0;
+    float mytime = 0;
 
     Color colors[3] = {Color(0.0, 0, 0, 0), Color(0.0, 0, 0, 0), WHITE};
     int positions[3] = {0, IMAGE_SIZE - 1, IMAGE_SIZE / 2};
@@ -1199,9 +1192,9 @@ public:
                 //     right = c;
             }
         }
-        //double t = (beatCount%8) + (ctx.time-ctx.lastbeat)/ctx.interval;
-        //double s = 2*M_PI*t/8.0;
-        ctx.dx = sin(ctx.time * 0.6) * 0.05;
+        //float t = (beatCount%8) + (ctx.time-ctx.lastbeat)/ctx.interval;
+        //float s = 2*M_PIf32*t/8.0;
+        ctx.dx = sinf(ctx.time * 0.6) * 0.05;
         //ctx.dx *= 1.0 + constrain((ctx.treb/ctx.treb_att)-1.0) * 0.2;
     }
 
@@ -1217,12 +1210,12 @@ public:
 
     void per_point(PatternContext &ctx, PointContext &pt) override
     {
-        double t = (ctx.time - ctx.lastbeat) / ctx.interval;
-        double s = 2 * M_PI * t;
-        pt.dx += sin(s + 3 * pt.rad) * 0.02;
+        float t = (ctx.time - ctx.lastbeat) / ctx.interval;
+        float s = 2 * M_PIf32 * t;
+        pt.dx += sinf(s + 3 * pt.rad) * 0.02f;
 
         // change dx to sx
-        // double dx = pt.dx;
+        // float dx = pt.dx;
         // pt.dx = 0;
         // pt.sx = (1.0 + dx*(pt.rad<0?-1.0:1.0));
     }

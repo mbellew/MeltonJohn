@@ -26,11 +26,11 @@ void term(int signum)
 }
 
 
-inline double time_in_seconds()
+inline float time_in_seconds()
 {
     struct timespec current_time = {0,0};
     clock_gettime(CLOCK_MONOTONIC_RAW, &current_time);
-    double time = current_time.tv_sec + current_time.tv_nsec / 1000000000.0;
+    float time = current_time.tv_sec + current_time.tv_nsec / 1000000000.0f;
     return time;
 }
 
@@ -242,10 +242,10 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    double framerate_time = time_in_seconds();
-    double start_time = framerate_time;
-    double frame_duration = 1.0f / 30.0f;
-    double next_frame_time = start_time + frame_duration;
+    float framerate_time = time_in_seconds();
+    float start_time = framerate_time;
+    float frame_duration = 1.0f / 30.0f;
+    float next_frame_time = start_time + frame_duration;
     int framerate_count = 0;
 
     const unsigned SAMPLES = 512;
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
     {
         midiMix.update();
 
-        double time;
+        float time;
         do
         {
             if (pa_simple_read(s, audioSamples, sizeof(audioSamples), &error) < 0)

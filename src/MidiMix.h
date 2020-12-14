@@ -5,6 +5,7 @@
 #ifndef MELTONJOHN_MIDMIX_H
 #define MELTONJOHN_MIDMIX_H
 
+#include <stdlib.h>
 #include <stdint.h>
 
 class InputByteStream

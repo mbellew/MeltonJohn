@@ -42,7 +42,7 @@ public:
     float waveSmoothing;
 
     int *ip;
-    double *w;
+    float *w;
     int newsamples;
 
     int numsamples; //size of new PCM info

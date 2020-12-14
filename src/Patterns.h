@@ -21,38 +21,43 @@ inline bool randomBool()
     return (((unsigned) random()) & 0x0001) != 0;
 }
 
-inline double randomDouble()
+inline float randomFloat()
 {
-    return random() / (double) RAND_MAX;
+    return random() / (float) RAND_MAX;
 }
 
-inline double IN(double a, double b, double r)
+inline float IN(float a, float b, float r)
 {
     //return a * (1.0 - r) + b * (r);
     return a + r*(b-a);
 }
 
-inline double MAX(double a, double b)
+inline float MAX(float a, float b)
 {
     return a > b ? a : b;
 }
 
-inline double MAX(double a, double b, double c)
+inline float MAX(float a, float b, float c)
 {
     return MAX(a, MAX(b, c));
 }
 
-inline double MIN(double a, double b)
+inline float MIN(float a, float b)
 {
     return a < b ? a : b;
 }
 
-inline double MIN(double a, double b, double c)
+inline float MIN(int a, int b)
+{
+    return a < b ? a : b;
+}
+
+inline float MIN(float a, float b, float c)
 {
     return MIN(a, MIN(b, c));
 }
 
-inline double constrain(double x, double mn, double mx)
+inline float constrain(float x, float mn, float mx)
 {
     return x < mn ? mn : x > mx ? mx : x;
 }
@@ -62,10 +67,6 @@ inline float constrainf(float x, float mn, float mx)
     return x < mn ? mn : x > mx ? mx : x;
 }
 
-inline double constrain(double x)
-{
-    return constrain(x, 0.0, 1.0);
-}
 inline float constrain(float x)
 {
     return constrainf(x, 0.0f, 1.0f);
@@ -79,7 +80,7 @@ inline int constrain(int x, int mn, int mx)
 class Generator
 {
 public:
-    virtual double next(double time) const = 0;
+    virtual float next(float time) const = 0;
 };
 
 
@@ -90,28 +91,28 @@ union Color
     {}
 
     explicit Color(unsigned int rgb) :
-            rgba { ((rgb >> 16) & 0xff) / 255.0, ((rgb >>  8) & 0xff) / 255.0, ((rgb >>  0) & 0xff) / 255.0, 1.0 }
+            rgba { ((rgb >> 16) & 0xff) / 255.0f, ((rgb >>  8) & 0xff) / 255.0f, ((rgb >>  0) & 0xff) / 255.0f, 1.0 }
     {
     }
 
     Color(unsigned r, unsigned g, unsigned b) :
-            rgba{ r/255.0, g/255.0, b/255.0, 1.0 }
+            rgba{ r/255.0f, g/255.0f, b/255.0f, 1.0 }
     {
     }
 
-    Color(double r, double g, double b) :
+    Color(float r, float g, float b) :
             arr{r, g, b, 1}
     {
     }
 
-    Color(double r, double g, double b, double a) :
+    Color(float r, float g, float b, float a) :
             arr{r, g, b, a}
     {
     }
 
-    // Color(double t, Generator &a, Generator &b, Generator &c) :
+    // Color(float t, Generator &a, Generator &b, Generator &c) :
     //     arr {a.next(t), b.next(t), c.next(t), 1.0} {}
-    Color(const Color &a, const Color &b, double ratio) :
+    Color(const Color &a, const Color &b, float ratio) :
             rgba {
                     IN(a.rgba.r, b.rgba.r, ratio),
                     IN(a.rgba.g, b.rgba.g, ratio),
@@ -121,25 +122,25 @@ union Color
     {
     }
 
-    double arr[4];
+    float arr[4];
     struct
     {
-        double r;
-        double g;
-        double b;
-        double a;
+        float r;
+        float g;
+        float b;
+        float a;
     } rgba;
     struct
     {
-        double h;
-        double s;
-        double l;
-        double _;
+        float h;
+        float s;
+        float l;
+        float _;
     } hsl;
 
-    static void saturate(double *rgb, double i = 1.0)
+    static void saturate(float *rgb, float i = 1.0)
     {
-        double m = MAX(rgb[0], MAX(rgb[1], rgb[2]));
+        float m = MAX(rgb[0], MAX(rgb[1], rgb[2]));
         if (m <= 0)
         {
             rgb[0] = rgb[1] = rgb[2] = 0;
@@ -151,7 +152,7 @@ union Color
         }
     }
 
-    static double _hue2rgb(double p, double q, double t)
+    static float _hue2rgb(float p, float q, float t)
     {
         if (t < 0)
             t += 1;
@@ -166,30 +167,30 @@ union Color
         return p;
     }
 
-    static void hsl2rgb(const double *hsl, double *rgb)
+    static void hsl2rgb(const float *hsl, float *rgb)
     {
-        double h = fmod(hsl[0], 1.0), s = hsl[1], l = hsl[2];
+        float h = fmod(hsl[0], 1.0), s = hsl[1], l = hsl[2];
 
         if (s == 0)
         {
             rgb[0] = rgb[1] = rgb[2] = l;
         } else
         {
-            double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-            double p = 2 * l - q;
+            float q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            float p = 2 * l - q;
             rgb[0] = _hue2rgb(p, q, h + 1.0 / 3.0);
             rgb[1] = _hue2rgb(p, q, h);
             rgb[2] = _hue2rgb(p, q, h - 1.0 / 3.0);
         }
     }
 
-    static void rgb2hsl(const double *rgb, double *hsl)
+    static void rgb2hsl(const float *rgb, float *hsl)
     {
-        double r = rgb[0], g = rgb[1], b = rgb[2];
-        double min = MIN(r, g, b);
-        double max = MAX(r, g, b);
-        double diff = max - min;
-        double h = 0, s = 0, l = (min + max) / 2;
+        float r = rgb[0], g = rgb[1], b = rgb[2];
+        float min = MIN(r, g, b);
+        float max = MAX(r, g, b);
+        float diff = max - min;
+        float h = 0, s = 0, l = (min + max) / 2;
 
         if (diff != 0)
         {
@@ -204,7 +205,7 @@ union Color
     }
 
 
-    void saturate(double intensity)
+    void saturate(float intensity)
     {
         saturate(arr, intensity);
     }
@@ -233,14 +234,14 @@ union Color
     }
 };
 
-const Color WHITE(1.0, 1.0, 1.0);
+const Color WHITE(1.0f, 1.0f, 1.0f);
 const Color BLACK;
-const Color RED(1.0, 0.0, 0.0);
-const Color GREEN(0.0, 1.0, 0.0);
-const Color BLUE(0.0, 0.0, 1.0);
+const Color RED(1.0f, 0.0f, 0.0f);
+const Color GREEN(0.0f, 1.0f, 0.0f);
+const Color BLUE(0.0f, 0.0f, 1.0f);
 
 
-inline Color &operator*=(Color &c, double f)
+inline Color &operator*=(Color &c, float f)
 {
     c.rgba.r *= f;
     c.rgba.g *= f;
@@ -249,7 +250,7 @@ inline Color &operator*=(Color &c, double f)
     return c;
 }
 
-inline Color operator*(const Color &c, double f)
+inline Color operator*(const Color &c, float f)
 {
     Color tmp(c);
     tmp *= f;
@@ -298,12 +299,12 @@ inline Color operator-(const Color &a, const Color &b)
 
 class SimpleGenerator : public Generator
 {
-    double offset, scale, speed;
+    float offset, scale, speed;
 public:
     SimpleGenerator() : offset(0.5), scale(0.5), speed(1.0)
     {}
 
-    SimpleGenerator(double _min, double _max, double _time)
+    SimpleGenerator(float _min, float _max, float _time)
     {
         offset = (_max + _min) / 2.0;
         scale = fabs(_max - _min) / 2.0;
@@ -324,7 +325,7 @@ public:
         speed = src.speed;
     }
 
-    double next(double t) const override
+    float next(float t) const override
     {
         return offset + scale * sin(t * speed);
     }
@@ -343,7 +344,7 @@ public:
     {
     }
 
-    double next(double t) const override
+    float next(float t) const override
     {
         return a.next(t) + b.next(t);
     }
@@ -352,7 +353,7 @@ public:
 class ColorGenerator
 {
 public:
-    virtual Color next(double t) const = 0;
+    virtual Color next(float t) const = 0;
 };
 
 class ComboGenerator : public ColorGenerator
@@ -364,7 +365,7 @@ public:
     {
     }
 
-    Color next(double t) const override
+    Color next(float t) const override
     {
         Color c(r->next(t), g->next(t), b->next(t));
         c.constrain2();
@@ -375,7 +376,7 @@ public:
 
 class PaletteGenerator : public ColorGenerator
 {
-    double speed;
+    float speed;
     int count;
     Color colors[10];
 
@@ -409,13 +410,13 @@ public:
         colors[4] = c4;
     }
 
-    Color next(double t) const override
+    Color next(float t) const override
     {
-        double value = fmod(t / speed, 1.0) * count;
+        float value = fmod(t / speed, 1.0) * count;
 
         int i = (int) floor(value);
         int j = (i + 1) % count;
-        double f = fmod(value, 1.0);
+        float f = fmod(value, 1.0);
         Color c = (colors[i] * (1.0 - f)) + (colors[j] * f);
         return c;
     }
@@ -439,11 +440,11 @@ class PointContext
 public:
     int pos;
     // per_point in
-    double rad;  // distance from center
+    float rad;  // distance from center
     // per_point in/out
-    double sx;
-    double cx;
-    double dx;
+    float sx;
+    float cx;
+    float dx;
     // sx and cx are converted to dx in after_per_point()
 };
 
@@ -464,11 +465,11 @@ public:
     }
 
     Color fade_to;
-    double fade;
+    float fade;
     bool blur;
-    double cx;       // center
-    double sx;       // stretch
-    double dx;       // slide
+    float cx;       // center
+    float sx;       // stretch
+    float dx;       // slide
     bool dx_wrap;    // rotate?
 
     unsigned ob_size;  // left border
@@ -478,24 +479,24 @@ public:
     Color ib_right;
     Color ib_left;
     // post process
-    double gamma;
+    float gamma;
     bool saturate;
 
-    double time;
-    double dtime;
+    float time;
+    float dtime;
 //    unsigned frame;
 
-    double vol;
-    double bass;
-    double mid;
-    double treb;
-    double vol_att;
-    double bass_att;
-    double mid_att;
-    double treb_att;
+    float vol;
+    float bass;
+    float mid;
+    float treb;
+    float vol_att;
+    float bass_att;
+    float mid_att;
+    float treb_att;
     bool beat;
-    double lastbeat;
-    double interval;
+    float lastbeat;
+    float interval;
 
     PointContext points[IMAGE_SIZE];
 };
@@ -521,7 +522,7 @@ public:
         memcpy(map, from.map, sizeof(map));
     }
 
-    double getValue(unsigned color, double f)
+    float getValue(unsigned color, float f)
     {
         int i = (int) floor(f);
         f = f - i;
@@ -532,7 +533,7 @@ public:
         return IN(map[i].arr[color], map[i + 1].arr[color], f);
     }
 
-    double getValue_wrap(unsigned color, double f)
+    float getValue_wrap(unsigned color, float f)
     {
         int i = (int) floor(f);
         f = f - i;
@@ -544,14 +545,14 @@ public:
         return IN(map[i].arr[color], map[j].arr[color], f);
     }
 
-    void getRGB(double f, double *rgb)
+    void getRGB(float f, float *rgb)
     {
         rgb[0] = getValue(RED_CHANNEL, f);
         rgb[1] = getValue(GREEN_CHANNEL, f);
         rgb[2] = getValue(BLUE_CHANNEL, f);
     }
 
-    Color getRGB(double f)
+    Color getRGB(float f)
     {
         int i = (int) floor(f);
         f = f - i;
@@ -568,14 +569,14 @@ public:
         return map[i];
     }
 
-    void getRGB_wrap(double f, double *rgb)
+    void getRGB_wrap(float f, float *rgb)
     {
         rgb[0] = getValue_wrap(RED_CHANNEL, f);
         rgb[1] = getValue_wrap(GREEN_CHANNEL, f);
         rgb[2] = getValue_wrap(BLUE_CHANNEL, f);
     }
 
-    Color getRGB_wrap(double f)
+    Color getRGB_wrap(float f)
     {
         int i = (int) floor(f);
         f = f - i;
@@ -587,7 +588,7 @@ public:
         return c;
     }
 
-    void setRGB(int i, double r, double g, double b)
+    void setRGB(int i, float r, float g, float b)
     {
         map[i].rgba.r = constrain(r);
         map[i].rgba.g = constrain(g);
@@ -601,7 +602,7 @@ public:
         map[i].constrain();
     }
 
-    void setRGBA(int i, double r, double g, double b, double a)
+    void setRGBA(int i, float r, float g, float b, float a)
     {
         map[i].rgba.r = IN(map[i].rgba.r, r, a);
         map[i].rgba.g = IN(map[i].rgba.g, g, a);
@@ -609,7 +610,7 @@ public:
         map[i].constrain();
     }
 
-    void setRGBA(int i, const Color &c, double a)
+    void setRGBA(int i, const Color &c, float a)
     {
         map[i].rgba.r = IN(map[i].rgba.r, c.rgba.r, a);
         map[i].rgba.g = IN(map[i].rgba.g, c.rgba.g, a);
@@ -628,12 +629,12 @@ public:
         map[i].constrain();
     }
 
-    void addRGB(double f, const Color &c)
+    void addRGB(float f, const Color &c)
     {
         int i = (int)floor(f);
         if (i <= -1 || i >= IMAGE_SIZE)
             return;
-        double r = fmod(f, 1.0);
+        float r = fmod(f, 1.0);
         Color tmp;
         if (i >= 0 && i < IMAGE_SIZE)
         {
@@ -653,38 +654,38 @@ public:
             setRGB(i, c);
     }
 
-    void stretch(double sx, double cx)
+    void stretch(float sx, float cx)
     {
         Image cp(*this);
-        double center = IN(LEFTMOST_PIXEL, RIGHTMOST_PIXEL, cx);
+        float center = IN(LEFTMOST_PIXEL, RIGHTMOST_PIXEL, cx);
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
-            double from = (i - center) / sx + center;
+            float from = (i - center) / sx + center;
             setRGB(i, cp.getRGB(from));
         }
     }
 
-    void move(double dx)
+    void move(float dx)
     {
         Image cp(*this);
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
-            double from = i + dx * IMAGE_SCALE;
+            float from = i + dx * IMAGE_SCALE;
             setRGB(i, cp.getRGB(from));
         }
     }
 
-    void rotate(double dx)
+    void rotate(float dx)
     {
         Image cp(*this);
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
-            double from = i + dx * IMAGE_SCALE;
+            float from = i + dx * IMAGE_SCALE;
             setRGB(i, cp.getRGB_wrap(from));
         }
     }
 
-    void decay(double d)
+    void decay(float d)
     {
         // scale d a little
         d = (d - 1.0) * 0.5 + 1.0;
@@ -692,7 +693,7 @@ public:
             map[i] *= d;
     }
 
-    void fade(double d, const Color &to)
+    void fade(float d, const Color &to)
     {
         if (d == 1.0)
             return;
@@ -793,7 +794,7 @@ public:
         {
             PointContext &pt = ctx.points[i];
             pt.pos = i;
-            pt.rad = ((double) i) / (IMAGE_SIZE - 1) - 0.5;
+            pt.rad = ((float) i) / (IMAGE_SIZE - 1) - 0.5;
             pt.sx = ctx.sx;
             pt.cx = ctx.cx;
             pt.dx = ctx.dx;
@@ -805,7 +806,7 @@ public:
         // convert sx,cx to dx
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
-            double center = IN(-0.5, 0.5, ctx.points[i].cx);
+            float center = IN(-0.5, 0.5, ctx.points[i].cx);
             ctx.points[i].dx += (ctx.points[i].rad - center) * (ctx.points[i].sx - 1.0);
         }
     }
@@ -819,7 +820,7 @@ public:
         Image cp(image);
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
-            double from = i - IMAGE_SCALE * ctx.points[i].dx;
+            float from = i - IMAGE_SCALE * ctx.points[i].dx;
             if (ctx.dx_wrap)
                 image.setRGB(i, cp.getRGB_wrap(from));
             else

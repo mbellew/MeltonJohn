@@ -131,9 +131,9 @@ public:
     virtual void per_frame(PatternContext &ctx) override
     {
         // combo generator does not free components, so don't new() them
-        SimpleGenerator r(fmax(0.02,fmin(redMin.get(midi), redMax.get(midi))),     fmax(0.02,fmax(redMin.get(midi), redMax.get(midi))),     0.5 + 10.0*redRate.get(midi));
-        SimpleGenerator g(fmax(0.02,fmin(greenMin.get(midi), greenMax.get(midi))), fmax(0.02,fmax(greenMin.get(midi), greenMax.get(midi))), 0.4 + 11.0*greenRate.get(midi));
-        SimpleGenerator b(fmax(0.02,fmin(blueMin.get(midi), blueMax.get(midi))),   fmax(0.02,fmax(blueMin.get(midi), blueMax.get(midi))),   0.6 + 9.0*blueRate.get(midi));
+        SimpleGenerator r(fmax(0.02f,fmin(redMin.get(midi), redMax.get(midi))),     fmax(0.02f,fmax(redMin.get(midi), redMax.get(midi))),     0.5f + 10.0f*redRate.get(midi));
+        SimpleGenerator g(fmax(0.02f,fmin(greenMin.get(midi), greenMax.get(midi))), fmax(0.02f,fmax(greenMin.get(midi), greenMax.get(midi))), 0.4f + 11.0f*greenRate.get(midi));
+        SimpleGenerator b(fmax(0.02f,fmin(blueMin.get(midi), blueMax.get(midi))),   fmax(0.02f,fmax(blueMin.get(midi), blueMax.get(midi))),   0.6f + 9.0f*blueRate.get(midi));
         ComboGenerator gen(&r,&g,&b);
         defaultColor = gen.next(ctx.time);
         alternateColor = defaultColor;
@@ -154,9 +154,9 @@ public:
 
         if (volSaturate.on(midi))
         {
-            double v = MAX(ctx.vol_att, ctx.vol);
-            double mx = MAX(defaultColor.rgba.r,defaultColor.rgba.g,defaultColor.rgba.b);
-            double s = MIN(1.0, constrain(mx,0.0,0.7) + 0.5 * v * volSaturate.get(midi));
+            float v = MAX(ctx.vol_att, ctx.vol);
+            float mx = MAX(defaultColor.rgba.r,defaultColor.rgba.g,defaultColor.rgba.b);
+            float s = MIN(1.0f, constrainf(mx,0.0f,0.7f) + 0.5f * v * volSaturate.get(midi));
             defaultColor.saturate(s);
             alternateColor = defaultColor;
             alternateColor.complement();
@@ -165,13 +165,13 @@ public:
 
         if (bassAccelerator.on(midi))
         {
-            double bass = MAX(0.2, ctx.bass_att, ctx.bass);
-            double acc = (bass - 0.2) * bassAccelerator.get(midi);
+            float bass = MAX(0.2f, ctx.bass_att, ctx.bass);
+            float acc = (bass - 0.2f) * bassAccelerator.get(midi);
             if (ctx.sx > 1)
                 ctx.sx += acc;
             else
                 ctx.sx -= acc;
-            ctx.sx = constrain(ctx.sx, 0.0, 10.0);
+            ctx.sx = constrain(ctx.sx, 0.0f, 10.0f);
         }
 
         if (enableCenter.on(midi))
@@ -273,7 +273,7 @@ public:
         Image cp(image);
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
-            double from = i - IMAGE_SCALE * ctx.points[i].dx;
+            float from = i - IMAGE_SCALE * ctx.points[i].dx;
             image.setRGB(i, cp.getRGB_wrap(from));
         }
     }
@@ -281,8 +281,8 @@ public:
 
 class MidiEqualizerPattern : public MidiPattern
 {
-    double bassPrev = 1.0;
-    double trebPrev = 1.0;
+    float bassPrev = 1.0f;
+    float trebPrev = 1.0f;
     int posB, posT;
 
 public:
@@ -291,34 +291,34 @@ public:
 
     void setup(PatternContext &ctx) override
     {
-        ctx.cx = 0;
+        ctx.cx = 0.0f;
         ctx.blur = true;
-        ctx.fade = 0.95;
-        ctx.sx = 1.1;
+        ctx.fade = 0.95f;
+        ctx.sx = 1.1f;
         ctx.dx_wrap = false;
     }
     void per_frame(PatternContext &ctx) override
     {
         MidiPattern::per_frame(ctx);
 
-        double f = 0.4;
+        float f = 0.4f;
         if (volSaturate.on(midi))
-            f = 0.2 + 0.8 * volSaturate.get(midi);
+            f = 0.2f + 0.8f * volSaturate.get(midi);
 
-        double bass = MAX(ctx.bass, ctx.bass_att, bassPrev*0.9);
-        bassPrev = constrain(bass, 0.0, 1.5);
-        posB = (int)floor(constrain(f * (bass-0.5) * IMAGE_SCALE, 0.0, IMAGE_SCALE - 1.0));
+        float bass = MAX(ctx.bass, ctx.bass_att, bassPrev*0.9);
+        bassPrev = constrain(bass, 0.0f, 1.5f);
+        posB = (int)floor(constrain(f * (bass-0.5f) * IMAGE_SCALE, 0.0f, IMAGE_SCALE - 1.0f));
 
-        double treb = MAX(ctx.treb, ctx.treb_att, trebPrev*0.9);
-        trebPrev = constrain(treb, 0.0, 1.5);
-        posT = IMAGE_SIZE - 1 - (int)floor(constrain(f * (treb-0.50) * IMAGE_SCALE, 0.0, IMAGE_SCALE - 1.0));
+        float treb = MAX(ctx.treb, ctx.treb_att, trebPrev*0.9f);
+        trebPrev = constrain(treb, 0.0f, 1.5f);
+        posT = IMAGE_SIZE - 1 - (int)floor(constrain(f * (treb-0.50f) * IMAGE_SCALE, 0.0f, IMAGE_SCALE - 1.0f));
 
         ctx.cx = ((posB + posT) / 2.0) / IMAGE_SIZE;
 //        if (posB <= posT)
 //            ctx.sx = 1.1;
 //        else
 //            ctx.sx = 0.9;
-        fprintf(stderr,"b %lf %d t %lf %d\n", (double)ctx.bass, posB, (double)ctx.treb, posT);
+        fprintf(stderr,"b %f %d t %f %d\n", (float)ctx.bass, posB, (float)ctx.treb, posT);
     }
 
     void draw(PatternContext &ctx, Image &image) override
@@ -326,18 +326,18 @@ public:
         Color c1, c2, cmix;
         if (enablePalatte.on(midi))
         {
-            c1 = Color(1.0, 0.0, 0.0); // red
-            c2 = Color(0.0, 1.0, 0.0); // green
-            cmix = Color(1.0, 1.0, 1.0, 0.5);
+            c1 = Color(1.0f, 0.0f, 0.0f); // red
+            c2 = Color(0.0f, 1.0f, 0.0f); // green
+            cmix = Color(1.0f, 1.0f, 1.0f, 0.5f);
         }
         else
         {
             c1 = defaultColor;
             c2 = alternateColor;
-            cmix = Color(1.0, 1.0, 0.0, 0.5);
+            cmix = Color(1.0f, 1.0f, 0.0f, 0.5f);
         }
         if (posB == posT)
-            image.setRGB(posB, Color(1.0,1.0,0.0));
+            image.setRGB(posB, Color(1.0f,1.0f,0.0f));
         else
         {
             image.setRGB(posB, c1);

@@ -4,7 +4,7 @@
 #include "MidiMix.h"
 
 #define IMAGE_SIZE 20
-#define IMAGE_SCALE ((double)IMAGE_SIZE)
+#define IMAGE_SCALE ((float)IMAGE_SIZE)
 #define OB_LEFT 0
 #define OB_RIGHT (IMAGE_SIZE-1)
 #define IB_LEFT 1

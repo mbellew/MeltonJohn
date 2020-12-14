@@ -144,7 +144,7 @@ public:
         ctx.fade_to = fadeTo;
     }
 
-    double getValue(PatternContext &ctx) const
+    float getValue(PatternContext &ctx) const
     {
         switch (band)
         {
@@ -156,7 +156,7 @@ public:
 
     void per_frame(PatternContext &ctx) override
     {
-        double v = getValue(ctx);
+        float v = getValue(ctx);
         pos = (int)v * v * IMAGE_SCALE/2;
         pos = constrain(pos, 0, IMAGE_SIZE - 1);
     }

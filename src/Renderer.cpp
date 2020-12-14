@@ -1,57 +1,50 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
-//#include <string>
-//#include <vector>
-#include "MidiMix.h"
 #include "Renderer.h"
 #include "Patterns.h"
 
-
-
 class MyBeat007
 {
-    double sure;
-    double maxdbass;
-    double pbass;
+    float sure;
+    float maxdbass;
+    float pbass;
 public:
     bool beat;
-    double lastbeat;
-    double interval;
+    float lastbeat;
+    float interval;
 
     MyBeat007() :
-            sure(0.6),
-            maxdbass(0.012),
-            lastbeat(0),
-            interval(40)
+            sure(0.6f),
+            maxdbass(0.012f),
+            pbass(0.0f),
+            beat(false),
+            lastbeat(0.0f),
+            interval(40.0f)
     {}
 
-    void update(double frame, double fps, const Spectrum *beatDetect)
+    void update(float frame, float fps, const Spectrum *beatDetect)
     {
-        double dbass = (beatDetect->bass - pbass) / fps;
+        float dbass = (beatDetect->bass - pbass) / fps;
         //fprintf(stderr, "%lf %lf\n", dbass, maxdbass);
         beat = dbass > 0.6 * maxdbass && frame - lastbeat > 1.0 / 3.0;
         if (beat && abs(frame - (lastbeat + interval)) < 1.0 / 5.0)
-            sure = sure + 0.095;
+            sure = sure + 0.095f;
         else if (beat)
-            sure = sure - 0.095;
+            sure = sure - 0.095f;
         else
-            sure = sure * 0.9996;
+            sure = sure * 0.9996f;
         sure = constrain(sure, 0.5, 1.0);
 
         bool cheat = frame > lastbeat + interval + int(1.0 / 10.0) && sure > 0.91;
         if (cheat)
         {
             beat = true;
-            sure = sure * 0.95;
+            sure = sure * 0.95f;
         }
-        maxdbass = MAX(maxdbass * 0.999, dbass);
-        maxdbass = constrain(maxdbass, 0.012, 0.02);
+        maxdbass = MAX(maxdbass * 0.999f, dbass);
+        maxdbass = constrain(maxdbass, 0.012f, 0.02f);
         if (beat)
         {
             interval = frame - lastbeat;
-            lastbeat = frame - (cheat ? (int) (1.0 / 10.0) : 0);
+            lastbeat = frame - (cheat ? (int) (1.0f / 10.0f) : 0.0f);
         }
         pbass = beatDetect->bass;
     }
@@ -69,9 +62,9 @@ private:
     Pattern *currentPattern = nullptr;
     MyBeat007 mybeat;
     unsigned int pattern_index = 0;
-    double preset_start_time = 0;
-    double prev_time = 0;
-    double vol_old = 1.0;
+    float preset_start_time = 0;
+    float prev_time = 0;
+    float vol_old = 1.0;
 
     static void outputLEDData(PatternContext &ctx, Image &image, float ledData[])
     {
@@ -117,9 +110,9 @@ public:
         if (countOfPatterns == 0)
             loadPatterns();
 
-        double progress = (current_time - preset_start_time) / 40.0;
+        float progress = (current_time - preset_start_time) / 40.0f;
 
-        double beat_sensitivity = /*beatDetect->beat_sensitivity*/ 5.0 - (progress > 0.5 ? progress - 0.5 : 0.0);
+        float beat_sensitivity = /*beatDetect->beat_sensitivity*/ 5.0f - (progress > 0.5f ? progress - 0.5f : 0.0f);
         Pattern *changeTo = nullptr;
 /*    if (nullptr != midi_)
     {
@@ -169,7 +162,7 @@ public:
         frame.treb_att = constrainf(beatDetect->treb_att, 0.01, 100.0);
         //frame.vol = beatDetect->vol;
         frame.vol = constrainf((beatDetect->bass + beatDetect->mid + beatDetect->treb) / 3.0f, 0.1, 100.0);
-        frame.vol_att = (frame.bass_att + frame.mid_att + frame.treb_att) / 3.0;
+        frame.vol_att = (frame.bass_att + frame.mid_att + frame.treb_att) / 3.0f;
         frame.beat = mybeat.beat;
         frame.lastbeat = mybeat.lastbeat;
         frame.interval = mybeat.interval;

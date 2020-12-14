@@ -75,7 +75,7 @@ void PCM::initPCM(int samples)
     start = 0;
 
     //Allocate FFT workspace
-    w = (double *) clear_alloc(maxsamples * sizeof(double));
+    w = (float *) clear_alloc(maxsamples * sizeof(float));
     ip = (int *) clear_alloc(maxsamples * sizeof(int));
     ip[0] = 0;
 
@@ -232,6 +232,7 @@ void PCM::getPCM(float *PCMdata, int samples, int channel, int freq, float smoot
 
     if (freq)
     {
+        /*
         double temppcm[1024];
         for (int i = 0; i < samples; i++)
         {
@@ -242,6 +243,8 @@ void PCM::getPCM(float *PCMdata, int samples, int channel, int freq, float smoot
         {
             PCMdata[j] = (float) temppcm[j];
         }
+        */
+        rdft(samples, 1, PCMdata, ip, w);
     }
 }
 
