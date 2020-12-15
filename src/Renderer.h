@@ -1,7 +1,10 @@
 #ifndef RENDER_H
 #define RENDER_H
 
+#include <stddef.h>
+#if MIDI_MIXER 
 #include "MidiMix.h"
+#endif
 
 #define IMAGE_SIZE 20
 #define IMAGE_SCALE ((float)IMAGE_SIZE)

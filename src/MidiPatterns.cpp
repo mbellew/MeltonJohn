@@ -1,9 +1,8 @@
+#if MIDI_MIXER
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-//#include <string>
-//#include <vector>
 #include "MidiMix.h"
 #include "Renderer.h"
 #include "Patterns.h"
@@ -398,3 +397,4 @@ Pattern * createMidiBorderPattern(MidiMix *m) { return new MidiBorderPattern(m);
 Pattern * createMidiFractalPattern(MidiMix *m) { return new MidiFractalPattern(m); }
 Pattern * createMidiEqualizerPattern(MidiMix *m) { return new MidiEqualizerPattern(m); }
 Pattern * createMidiOneBorderPattern(MidiMix *m) { return new MidiOneBorderPattern(m); }
+#endif

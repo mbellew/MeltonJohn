@@ -256,8 +256,9 @@ int main(int argc, char *argv[])
 
     while (!terminate)
     {
+#if MIDI_MIXER
         midiMix.update();
-
+#endif
         float time;
         do
         {

@@ -1,13 +1,11 @@
 #ifndef PATTERNS_H
 #define PATTERNS_H
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-//#include <string>
-//#include <vector>
-#include "MidiMix.h"
 #include "Renderer.h"
 
 
@@ -868,10 +866,12 @@ extern Pattern *createPebbles();
 extern Pattern *createSwayBeat();
 
 /* MidiPatterns.cpp (integrates with Midi controller) */
+#if MIDI_MIXER
 extern Pattern * createMidiBorderPattern(MidiMix *);
 extern Pattern * createMidiFractalPattern(MidiMix *);
 extern Pattern * createMidiEqualizerPattern(MidiMix *);
 extern Pattern * createMidiOneBorderPattern(MidiMix *);
+#endif
 
 /* MultiLayerPatterns.cpp */
 extern Pattern * createEqNew();

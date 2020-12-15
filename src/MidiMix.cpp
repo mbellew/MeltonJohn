@@ -1,3 +1,5 @@
+#if MIDI_MIXER
+
 #include <stdint.h>
 #include <stdio.h>
 #include "MidiMix.h"
@@ -143,3 +145,4 @@ void MidiMix::sync()
         for (size_t row=0 ; row < 3 ; row++)
             syncButton(col, row);
 }
+#endif

@@ -157,11 +157,12 @@ Serial.println();
 
 /** MAIN **/
 
-class Renderer
+class _DMXWriter
 {
 public:
     virtual void begin() = 0;
     virtual void write(uint8_t data[], size_t size) = 0;
+    virtual void loop() = 0;
 };
 
 
@@ -197,7 +198,7 @@ public:
 #endif
 
 
-class RenderDMX : Renderer
+class RenderDMX : _DMXWriter
 {
     // extra buffer for full dmx frame
     static uint8_t tx_buffer[512*3];
@@ -233,9 +234,11 @@ public:
         for (size_t i=size ; i<128 ; i++)
             serial.write((uint8_t)0);
     }
+
+    void loop(){}
 };
 
-class RenderDebug : Renderer
+class RenderDebug : _DMXWriter
 {
 public:
     void begin()
@@ -254,6 +257,8 @@ public:
         }
         Serial.println();
     }
+
+    void loop(){}
 };
 
 
@@ -293,9 +298,9 @@ void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledDat
 
 class SoundFFT sound;
 //class RenderOcto renderer(IMAGE_SIZE);
-class RenderDMX renderer(SERIAL_PORT_DMX);
-class RenderDebug rendererDebug;
-
+class RenderDMX outputDMX(SERIAL_PORT_DMX);
+class RenderDebug outputDebug;
+Renderer *renderPattern = createRenderer();
 
 
 void setup_()
@@ -310,11 +315,10 @@ void setup_()
     pinMode(A1, INPUT);
 
     SERIAL_PORT_MONITOR.begin(250000);
-    renderer.begin();
+    outputDMX.begin();
     sound.begin();
 
     uint8_t C = 0x20;
-    uint8_t black[3*IMAGE_SIZE] = {0};    
     uint8_t buffer[3*IMAGE_SIZE];
     
     for (size_t rep = 0; rep < 3; rep++)
@@ -343,7 +347,7 @@ void setup_()
             }
             i++;
         }
-        renderer.write(buffer,3*IMAGE_SIZE);
+        outputDMX.write(buffer,3*IMAGE_SIZE);
         delay(3000);
 
         for (size_t i=0; i < IMAGE_SIZE; i++)
@@ -352,7 +356,7 @@ void setup_()
             buffer[i*3+1] = 0x00;
             buffer[i*3+2] = 0x00;
         }
-        renderer.write(buffer,3*IMAGE_SIZE);
+        outputDMX.write(buffer,3*IMAGE_SIZE);
         delay(1000);
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
@@ -360,7 +364,7 @@ void setup_()
             buffer[i*3+1] = C;
             buffer[i*3+2] = 0x00;
         }
-        renderer.write(buffer,3*IMAGE_SIZE);
+        outputDMX.write(buffer,3*IMAGE_SIZE);
         delay(1000);
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
@@ -368,7 +372,7 @@ void setup_()
             buffer[i*3+1] = 0x00;
             buffer[i*3+2] = C;
         }
-        renderer.write(buffer,3*IMAGE_SIZE);
+        outputDMX.write(buffer,3*IMAGE_SIZE);
         delay(1000);
     }
 };
@@ -424,14 +428,14 @@ void loop_()
       uint8_t u8values[IMAGE_SIZE*3];
 
     //   LOG_println("renderFrame");
-      renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
+        renderPattern->renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
      
     //   LOG_println("mapToDisplay");
       mapToDisplay(brightness, 0.0, 2.5, f32values, u8values, IMAGE_SIZE*3);     
      
-    //   LOG_println("renderer.write");
-      renderer.write(u8values, IMAGE_SIZE*3);
-      //rendererDebug.write(buffer, sizeof(buffer));
+    //   LOG_println("outputDMX.write");
+      outputDMX.write(u8values, IMAGE_SIZE*3);
+      //outputDebug.write(buffer, sizeof(buffer));
 
       int volPot = analogRead(A1);
       brightness = 0.5 * (brightness + volPot/1023.0);

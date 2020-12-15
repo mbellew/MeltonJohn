@@ -1,6 +1,10 @@
 #include "Renderer.h"
 #include "Patterns.h"
 
+#ifndef M_PIf32
+#define M_PIf32 ((float)M_PI)
+#endif
+
 
 PaletteGenerator palette0(
         Color(0u, 38u, 66u),        // oxford blue
