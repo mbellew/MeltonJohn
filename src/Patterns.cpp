@@ -1,10 +1,6 @@
 #include "Renderer.h"
 #include "Patterns.h"
 
-#ifndef M_PIf32
-#define M_PIf32 ((float)M_PI)
-#endif
-
 
 PaletteGenerator palette0(
         Color(0u, 38u, 66u),        // oxford blue
@@ -125,18 +121,20 @@ public:
     void per_frame(PatternContext &ctx) override
     {
         ctx.ob_left = palette->get(7 * (int) ctx.time);
-        ctx.ob_left *= 0.5f + ctx.treb / 2.0f;
+        ctx.ob_left = ctx.ob_left * (0.5f + ctx.treb / 2.0f);
         ctx.ib_left = ctx.ob_left;
-        ctx.ib_left.complement();
+        ctx.ib_left = ctx.ib_left.complement();
 
         //ctx.ob_right = rb_color->next( ctx.time );
         ctx.ob_right = palette->get(5 * (int) (ctx.time + 2.0));
-        ctx.ob_right *= 0.5f + ctx.bass / 2.0f;
+        ctx.ob_right = ctx.ob_right * (0.5f + ctx.bass / 2.0f);
         ctx.ib_right = ctx.ob_right;
-        ctx.ib_right.complement();
+        ctx.ib_right = ctx.ib_right.complement();
 
         ctx.cx = cx.next(ctx.time);
 
+        ctx.sx = 0.99f - 0.1f * ctx.bass;
+        ctx.sx = 0.99f - 0.1f * ctx.bass;
         ctx.sx = 0.99f - 0.1f * ctx.bass;
         //fprintf(stderr,"%lf\n", ctx.sx);
     }
@@ -217,7 +215,7 @@ public:
             c = Color(1.0f, 1.0f - v / 2.0f, 1.0f - v / 2.0f); // red
             bg = Color(1.0f, 1.0f, 1.0f);
         }
-        c.constrain2();
+        c = c.constrain2();
         //Color c(ctx.treb,ctx.mid,ctx.bass);
         //int v = ctx.vol;// / MAX(1,ctx.vol_att);
         //int bass = ctx.bass; // MAX(ctx.bass_att, ctx.bass);
@@ -309,9 +307,9 @@ public:
             Color color1 = cp.getRGB(2 * i);
             Color color2 = cp.getRGB(2 * i + 1);
             Color c(
-                    MAX(color1.rgba.r, color2.rgba.r),
-                    MAX(color1.rgba.g, color2.rgba.g),
-                    MAX(color1.rgba.b, color2.rgba.b), 0.2
+                    MAX(color1.r(), color2.r()),
+                    MAX(color1.g(), color2.g()),
+                    MAX(color1.b(), color2.b()), 0.2
             );
             image.setRGBA(i, c);
             image.setRGBA(i + IMAGE_SIZE / 2, c);
@@ -327,7 +325,7 @@ public:
         else
         {
             c = color->next(ctime);
-            c.saturate(1.0);
+            c = c.saturate(1.0);
         }
         float posx = x.next(ptime);
         image.setRGB((int) floorf(posx), BLACK);
@@ -395,7 +393,7 @@ public:
             ctime += 21;
 
         Color c = color->next(ctime);
-        c.saturate(1.0);
+        c = c.saturate(1.0);
 
         if (option)
         {
@@ -412,7 +410,7 @@ public:
             c = c * constrain(0.7f + 0.3f * ctx.bass);
         }
 
-        c.constrain2();
+        c = c.constrain2();
         ctx.ob_left = ctx.ob_right = c;
     }
 
@@ -595,10 +593,8 @@ public:
         float mid = constrain(MAX(ctx.mid, ctx.mid_att) - 1.3f);
         float treb = constrain(MAX(ctx.treb, ctx.treb_att) - 1.3f);
         Color c = color->next(ctx.time * 2.0f);
-        Color c1, c2;
-
-        c1 = c + Color(mid, bass, treb) * 0.4f;
-        c2 = c1;
+        Color c1 = c + Color(mid, bass, treb) * 0.4f;
+        Color c2 = c1;
         image.setRGB(IMAGE_SIZE / 2 - 1, c1);
         image.setRGB(IMAGE_SIZE / 2, c2);
     }
@@ -654,12 +650,12 @@ public:
             // c2 = Color(1.0, 1.0, 0.0);    // yellow
             // cmix = Color(0.0, 1.0, 0.0);  // green
             c1 = p->get(0);
-            c1.saturate(1.0);
+            c1 = c1.saturate(1.0);
             c2 = p->get(1);
-            c2.saturate(1.0);
+            c2 = c2.saturate(1.0);
             cmix = p->get(2);
-            cmix.saturate(1.0);
-            cmix.rgba.a = 0.5;
+            cmix = cmix.saturate(1.0);
+            cmix = Color(cmix.r(), cmix.g(), cmix.b(), 0.5);
         }
         snprintf(pattern_name, sizeof(pattern_name), "%s %s", "equalizer", option ? "true" : "false");
     }
@@ -802,15 +798,15 @@ public:
         // c = white * 0.2 + white * 0.5 * ctx.bass; // Color(mid,bass,treb) * 0.4;
         // c = white * 0.2 + Color(bass,mid,treb) * 0.4;
         c = Color(MAX(0.2, bass), MAX(0.2, mid), MAX(0.2, treb));
-        c.constrain2();
+        c = c.constrain2();
         // c = white * 0.3 + c * 0.7;
         //c.saturate(1.0);
         if (posLast == pos)
         {
             c = Color(
-                    MAX(c.rgba.r, colorLast.rgba.r),
-                    MAX(c.rgba.g, colorLast.rgba.g),
-                    MAX(c.rgba.b, colorLast.rgba.b)
+                    MAX(c.r(), colorLast.r()),
+                    MAX(c.g(), colorLast.g()),
+                    MAX(c.b(), colorLast.b())
             );
         }
         image.setRGB((pos + 1) % IMAGE_SIZE, black);
@@ -882,13 +878,14 @@ public:
             c = WHITE;
             float v = MAX(ctx.vol_att, ctx.vol);
             float s = MIN(1.0f, 0.55f + 0.3f * v);
-            c.saturate(s);
+            c = c.saturate(s);
         }
+        else
         {
             c = palette->get(beatCount);
             float v = MAX(ctx.vol_att, ctx.vol);
             float s = MIN(1.0f, 0.55f + 0.3f * v);
-            c.saturate(s);
+            c = c.saturate(s);
         }
         ctx.ob_right = c;
     }
@@ -1044,7 +1041,7 @@ public:
         float t = constrain(ctx.treb / ctx.vol - 2.1);
         float b = constrain(ctx.bass / ctx.vol - 2.1);
         Color c = Color(1.0f - b, 1.0f - t - b, 1.0f - t);
-        c.constrain();
+        c = c.constrain();
         float s = MIN(1.0f, 0.3f + v);
         if (!ctx.beat)
             c = c * s;
@@ -1064,8 +1061,8 @@ class BigWhiteLight2 : public AbstractPattern
 {
     float start_time = 0.0;
     float prev_time = 0.0;
-    bool dir = 0;
-    bool option = 0;
+    bool dir = false;
+    bool option = false;
 public:
 
     BigWhiteLight2() : AbstractPattern("big white2")
@@ -1108,7 +1105,7 @@ public:
         float t = constrain(ctx.treb / ctx.vol - 2.1f);
         float b = constrain(ctx.bass / ctx.vol - 2.1f);
         Color c = Color(1.0f - b, 1.0f - t - b, 1.0f - t);
-        c.constrain();
+        c = c.constrain();
         float s = MIN(1.0f, 0.3f + v);
         if (!ctx.beat)
             c = c * s;
@@ -1166,21 +1163,20 @@ public:
     void per_frame(PatternContext &ctx) override
     {
         mytime += ctx.dtime;
-        colors[0].rgba.a *= 0.95;
-        colors[1].rgba.a *= 0.95;
-        //colors[2].rgba.a *= 0.95;
+        colors[0] = Color(colors[0].r(),colors[0].g(),colors[0].b(),colors[0].a()* 0.95f);
+        colors[1] = Color(colors[1].r(),colors[1].g(),colors[1].b(),colors[1].a()* 0.95f);
 
         if (ctx.beat)
         {
             beatCount++;
-            if (randomBool() && colors[0].rgba.a < 0.3)
+            if (randomBool() && colors[0].a() < 0.3)
             {
                 Color c;
                 do
                 {
                     unsigned p = randomInt(RAND_MAX);
                     c = palette->get(p);
-                } while (c.rgba.r + c.rgba.g + c.rgba.b < 1.0);
+                } while (c.r() + c.g() + c.b() < 1.0);
                 colors[0] = colors[1];
                 positions[0] = positions[1];
                 colors[1] = colors[2];
@@ -1198,7 +1194,7 @@ public:
         }
         //float t = (beatCount%8) + (ctx.time-ctx.lastbeat)/ctx.interval;
         //float s = 2*M_PIf32*t/8.0;
-        ctx.dx = sinf(ctx.time * 0.6) * 0.05;
+        ctx.dx = sinf(ctx.time * 0.6f) * 0.05f;
         //ctx.dx *= 1.0 + constrain((ctx.treb/ctx.treb_att)-1.0) * 0.2;
     }
 

@@ -74,9 +74,9 @@ private:
 //        int r = (int) (pow(, ctx.gamma) * 255);
 //        int g = (int) (pow(constrain(c.rgba.g), ctx.gamma) * 255);
 //        int b = (int) (pow(constrain(c.rgba.b), ctx.gamma) * 255);
-            ledData[i*3+0] = constrain(c.rgba.r);
-            ledData[i*3+1] = constrain(c.rgba.g);
-            ledData[i*3+2] = constrain(c.rgba.b);
+            ledData[i*3+0] = constrain(c.r());
+            ledData[i*3+1] = constrain(c.g());
+            ledData[i*3+2] = constrain(c.b());
         }
     }
 

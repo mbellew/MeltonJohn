@@ -8,6 +8,10 @@
 #include <string.h>
 #include "Renderer.h"
 
+#ifndef M_PIf32
+#define M_PIf32 ((float)M_PI)
+#endif
+
 
 inline unsigned randomInt(unsigned max)
 {
@@ -30,6 +34,11 @@ inline float IN(float a, float b, float r)
     return a + r*(b-a);
 }
 
+inline int MAX(int a, int b)
+{
+    return a > b ? a : b;
+}
+
 inline float MAX(float a, float b)
 {
     return a > b ? a : b;
@@ -40,12 +49,12 @@ inline float MAX(float a, float b, float c)
     return MAX(a, MAX(b, c));
 }
 
-inline float MIN(float a, float b)
+inline int MIN(int a, int b)
 {
     return a < b ? a : b;
 }
 
-inline float MIN(int a, int b)
+inline float MIN(float a, float b)
 {
     return a < b ? a : b;
 }
@@ -82,11 +91,51 @@ public:
 };
 
 
-
+/* Color is currently an immutable value class */
 union Color
 {
+private:
+    float arr[4];
+    struct
+    {
+        float r;
+        float g;
+        float b;
+        float a;
+    } rgba;
+
+private:
+    void _get(float out[4]) const
+    {
+        out[0] = arr[0];
+        out[1] = arr[1];
+        out[2] = arr[2];
+        out[3] = arr[3];
+    }
+
+    static float _hue2rgb(float p, float q, float t)
+    {
+        if (t < 0)
+            t += 1;
+        if (t >= 1)
+            t -= 1;
+        if (t < 1.0 / 6.0)
+            return p + (q - p) * 6 * t;
+        if (t < 1.0 / 2.0)
+            return q;
+        if (t < 2.0 / 3.0)
+            return p + (q - p) * (2.0f/3.0f - t) * 6.0f;
+        return p;
+    }
+
+public:
     Color() : arr{0, 0, 0, 1}
     {}
+
+    static Color rgb(float in[4])
+    {
+        return Color(in[0], in[1], in[2], in[3]);
+    }
 
     explicit Color(unsigned int rgb) :
             rgba { ((rgb >> 16) & 0xff) / 255.0f, ((rgb >>  8) & 0xff) / 255.0f, ((rgb >>  0) & 0xff) / 255.0f, 1.0 }
@@ -108,8 +157,7 @@ union Color
     {
     }
 
-    // Color(float t, Generator &a, Generator &b, Generator &c) :
-    //     arr {a.next(t), b.next(t), c.next(t), 1.0} {}
+    // alpha blend
     Color(const Color &a, const Color &b, float ratio) :
             rgba {
                     IN(a.rgba.r, b.rgba.r, ratio),
@@ -120,23 +168,40 @@ union Color
     {
     }
 
-    float arr[4];
-    struct
+    // alpha blend
+    Color(const Color &a, const Color &b) :
+            rgba {
+                    IN(a.rgba.r, b.rgba.r, b.a()),
+                    IN(a.rgba.g, b.rgba.g, b.a()),
+                    IN(a.rgba.b, b.rgba.b, b.a()),
+                    1.0
+            }
     {
-        float r;
-        float g;
-        float b;
-        float a;
-    } rgba;
-    struct
-    {
-        float h;
-        float s;
-        float l;
-        float _;
-    } hsl;
+    }
 
-    static void saturate(float *rgb, float i = 1.0)
+
+    float r() const
+    {
+        return rgba.r;
+    }
+    float g() const
+    {
+        return rgba.g;
+    }
+    float b() const
+    {
+        return rgba.b;
+    }
+    float a() const
+    {
+        return rgba.a;
+    }
+    float getChannel(unsigned ch) const
+    {
+        return arr[ch];
+    }
+
+    static void saturate(float rgb[4], float i = 1.0)
     {
         float m = MAX(rgb[0], MAX(rgb[1], rgb[2]));
         if (m <= 0)
@@ -150,21 +215,6 @@ union Color
         }
     }
 
-    static float _hue2rgb(float p, float q, float t)
-    {
-        if (t < 0)
-            t += 1;
-        if (t >= 1)
-            t -= 1;
-        if (t < 1.0 / 6.0)
-            return p + (q - p) * 6 * t;
-        if (t < 1.0 / 2.0)
-            return q;
-        if (t < 2.0 / 3.0)
-            return p + (q - p) * (2.0/3.0 - t) * 6.0;
-        return p;
-    }
-
     static void hsl2rgb(const float *hsl, float *rgb)
     {
         float h = fmod(hsl[0], 1.0), s = hsl[1], l = hsl[2];
@@ -176,9 +226,9 @@ union Color
         {
             float q = l < 0.5 ? l * (1 + s) : l + s - l * s;
             float p = 2 * l - q;
-            rgb[0] = _hue2rgb(p, q, h + 1.0 / 3.0);
+            rgb[0] = _hue2rgb(p, q, h + 1.0f / 3.0f);
             rgb[1] = _hue2rgb(p, q, h);
-            rgb[2] = _hue2rgb(p, q, h - 1.0 / 3.0);
+            rgb[2] = _hue2rgb(p, q, h - 1.0f / 3.0f);
         }
     }
 
@@ -197,38 +247,39 @@ union Color
                 g == max ? 2 + (b - r) / diff :
                 4 + (r - g) / diff;
         }
-        hsl[0] = h / 6.0;
+        hsl[0] = h / 6.0f;
         hsl[1] = s;
         hsl[2] = l;
     }
 
-
-    void saturate(float intensity)
+    Color saturate(float intensity) const
     {
-        saturate(arr, intensity);
+        float t[4];
+        _get(t);
+        Color::saturate(t, intensity);
+        return Color::rgb(t);
     }
 
-    Color &constrain()
+    Color constrain() const
     {
-        rgba.r = ::constrain(rgba.r);
-        rgba.g = ::constrain(rgba.g);
-        rgba.b = ::constrain(rgba.b);
+        return Color(::constrain(rgba.r), ::constrain(rgba.g), ::constrain(rgba.b), ::constrain(rgba.a));
+    }
+
+    Color constrain2() const
+    {
+        if (rgba.r > 1.0 || rgba.b > 1.0 || rgba.g > 1.0)
+            return saturate(1.0);
         return *this;
     }
 
-    void constrain2()
-    {
-        if (rgba.r > 1.0 || rgba.b > 1.0 || rgba.g > 1.0)
-            saturate(1.0);
-    }
-
-    Color &complement()
+    Color complement() const
     {
         Color hsl;
         Color::rgb2hsl(arr, hsl.arr);
         hsl.arr[0] += 0.5;
-        hsl2rgb(hsl.arr, arr);
-        return *this;
+        Color comp;
+        hsl2rgb(hsl.arr, comp.arr);
+        return comp;
     }
 };
 
@@ -239,59 +290,71 @@ const Color GREEN(0.0f, 1.0f, 0.0f);
 const Color BLUE(0.0f, 0.0f, 1.0f);
 
 
-inline Color &operator*=(Color &c, float f)
-{
-    c.rgba.r *= f;
-    c.rgba.g *= f;
-    c.rgba.b *= f;
-    c.constrain();
-    return c;
-}
+//inline Color &operator*=(Color &c, float f)
+//{
+//    c.rgba.r *= f;
+//    c.rgba.g *= f;
+//    c.rgba.b *= f;
+//    c.constrain();
+//    return c;
+//}
 
 inline Color operator*(const Color &c, float f)
 {
-    Color tmp(c);
-    tmp *= f;
-    return tmp;
+    Color ret = Color(c.r()*f, c.g()*f, c.b()*f, c.a()).constrain();
+    return ret;
 }
 
-inline Color &operator+=(Color &c, const Color &a)
-{
-    if (a.rgba.a == 1.0)
-    {
-        c.rgba.r += a.rgba.r;
-        c.rgba.g += a.rgba.g;
-        c.rgba.b += a.rgba.b;
-        c.rgba.a = 1.0;
-        return c;
-    }
-    c.rgba.r = IN(c.rgba.r, a.rgba.r, a.rgba.a);
-    c.rgba.g = IN(c.rgba.g, a.rgba.g, a.rgba.a);
-    c.rgba.b = IN(c.rgba.b, a.rgba.b, a.rgba.a);
-    c.rgba.a = 1.0;
-    return c;
-}
+//inline Color &operator+=(Color &c, const Color &a)
+//{
+//    if (a.rgba.a == 1.0)
+//    {
+//        c.rgba.r += a.rgba.r;
+//        c.rgba.g += a.rgba.g;
+//        c.rgba.b += a.rgba.b;
+//        c.rgba.a = 1.0;
+//        return c;
+//    }
+//    c.rgba.r = IN(c.rgba.r, a.rgba.r, a.rgba.a);
+//    c.rgba.g = IN(c.rgba.g, a.rgba.g, a.rgba.a);
+//    c.rgba.b = IN(c.rgba.b, a.rgba.b, a.rgba.a);
+//    c.rgba.a = 1.0;
+//    return c;
+//}
 
+// Dumb addition, use Color(a,b) for real alpha blend
 inline Color operator+(const Color &a, const Color &b)
 {
-    Color ret(
-            a.rgba.r + b.rgba.r,
-            a.rgba.g + b.rgba.g,
-            a.rgba.b + b.rgba.b,
+    if (b.a()==1)
+    {
+        Color ret = Color(
+            a.r() + b.r(),
+            a.g() + b.g(),
+            a.b() + b.b(),
             1.0
-    );
-    return ret;
+        ).constrain();
+        return ret;
+    }
+    else
+    {
+        Color ret = Color(
+                a.r() + b.r() * b.a(),
+                a.g() + b.g() * b.a(),
+                a.b() + b.b() * b.a(),
+                1.0
+        ).constrain();
+        return ret;
+    }
 }
 
 inline Color operator-(const Color &a, const Color &b)
 {
-    Color ret(
-            a.rgba.r - b.rgba.r,
-            a.rgba.g - b.rgba.g,
-            a.rgba.b - b.rgba.b,
+    return Color(
+            a.r() - b.r(),
+            a.g() - b.g(),
+            a.b() - b.b(),
             1.0
-    );
-    return ret;
+    ).constrain();
 }
 
 
@@ -304,9 +367,9 @@ public:
 
     SimpleGenerator(float _min, float _max, float _time)
     {
-        offset = (_max + _min) / 2.0;
-        scale = fabs(_max - _min) / 2.0;
-        speed = 2 * M_PI / _time;
+        offset = (_max + _min) / 2.0f;
+        scale = fabsf(_max - _min) / 2.0f;
+        speed = 2.0f * M_PIf32 / _time;
     }
 
     SimpleGenerator(const SimpleGenerator &src)
@@ -366,7 +429,7 @@ public:
     Color next(float t) const override
     {
         Color c(r->next(t), g->next(t), b->next(t));
-        c.constrain2();
+        c = c.constrain2();
         return c;
     }
 };
@@ -410,21 +473,21 @@ public:
 
     Color next(float t) const override
     {
-        float value = fmod(t / speed, 1.0) * count;
+        float value = fmodf(t / speed, 1.0) * count;
 
         int i = (int) floor(value);
         int j = (i + 1) % count;
         float f = fmod(value, 1.0);
-        Color c = (colors[i] * (1.0 - f)) + (colors[j] * f);
+        Color c = (colors[i] * (1.0f - f)) + (colors[j] * f);
         return c;
     }
 
-    Color next(int t) const
+    Color next(size_t t) const
     {
         return colors[t % count];
     }
 
-    Color get(int t) const
+    Color get(size_t t) const
     {
         return colors[t % count];
     }
@@ -525,10 +588,10 @@ public:
         int i = (int) floor(f);
         f = f - i;
         if (i <= 0)
-            return map[0].arr[color];
+            return map[0].getChannel(color);
         if (i + 1 >= IMAGE_SIZE - 1)
-            return map[IMAGE_SIZE - 1].arr[color];
-        return IN(map[i].arr[color], map[i + 1].arr[color], f);
+            return map[IMAGE_SIZE - 1].getChannel(color);
+        return IN(map[i].getChannel(color), map[i + 1].getChannel(color), f);
     }
 
     float getValue_wrap(unsigned color, float f)
@@ -540,7 +603,7 @@ public:
         if (i >= IMAGE_SIZE)
             i = i - IMAGE_SIZE;
         int j = (i + 1) % IMAGE_SIZE;
-        return IN(map[i].arr[color], map[j].arr[color], f);
+        return IN(map[i].getChannel(color), map[j].getChannel(color), f);
     }
 
     void getRGB(float f, float *rgb)
@@ -588,43 +651,38 @@ public:
 
     void setRGB(int i, float r, float g, float b)
     {
-        map[i].rgba.r = constrain(r);
-        map[i].rgba.g = constrain(g);
-        map[i].rgba.b = constrain(b);
+        map[i] = Color(constrain(r), constrain(g), constrain(b), 1.0f);
     }
 
-    void setRGB(int i, Color c)
+    void setRGB(int i, const Color c)
     {
-        map[i] = c;
-        map[i].rgba.a = 1.0;
-        map[i].constrain();
+        // once copied into the image, the alpha is 1.0
+        setRGB(i, c.r(), c.g(), c.b());
     }
 
     void setRGBA(int i, float r, float g, float b, float a)
     {
-        map[i].rgba.r = IN(map[i].rgba.r, r, a);
-        map[i].rgba.g = IN(map[i].rgba.g, g, a);
-        map[i].rgba.b = IN(map[i].rgba.b, b, a);
-        map[i].constrain();
+        map[i] = Color(map[i], Color(r,g,b), a).constrain();
     }
 
     void setRGBA(int i, const Color &c, float a)
     {
-        map[i].rgba.r = IN(map[i].rgba.r, c.rgba.r, a);
-        map[i].rgba.g = IN(map[i].rgba.g, c.rgba.g, a);
-        map[i].rgba.b = IN(map[i].rgba.b, c.rgba.b, a);
-        map[i].constrain();
+        map[i] = Color(map[i], c, a).constrain();
     }
 
     void setRGBA(int i, const Color &c)
     {
-        setRGBA(i, c, c.rgba.a);
+        setRGBA(i, c, c.a());
     }
 
     void addRGB(int i, const Color &c)
     {
-        map[i] += c;
-        map[i].constrain();
+        map[i] = (map[i] + c).constrain();
+    }
+
+    void blendRGB(int i, const Color &c)
+    {
+        map[i] = Color(map[i], c);
     }
 
     void addRGB(float f, const Color &c)
@@ -686,22 +744,22 @@ public:
     void decay(float d)
     {
         // scale d a little
-        d = (d - 1.0) * 0.5 + 1.0;
+        d = (d - 1.0f) * 0.5f + 1.0f;
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
-            map[i] *= d;
+            map[i] = map[i] * d;
     }
 
     void fade(float d, const Color &to)
     {
         if (d == 1.0)
             return;
-        if (to.rgba.r == 0 && to.rgba.g == 0 && to.rgba.b == 0)
+        if (to.r() == 0 && to.g() == 0 && to.b() == 0)
         {
             decay(d);
             return;
         }
         // scale d a little
-        d = (d - 1.0) * 0.5 + 1.0;
+        d = (d - 1.0f) * 0.5f + 1.0f;
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
             map[i] = to - (to - map[i]) * d;
