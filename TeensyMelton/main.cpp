@@ -16,30 +16,6 @@
 
 
 
-#define DEBUG_LOG 0
-
-// IMAGE_SIZE is in config.h
-
-// OUTPUT LIGHT
-#define OUTPUT_FASTLED_NEOPIXEL 1
-#define OUTPUT_FASTLED_DMX 0
-#define OUTPUT_OCTO 0
-#define OUTPUT_DEBUG 0
-#define OUTPUT_MYDMX 0
-
-#define NEOPIXEL_PIN 2
-#define DMX_TX_PIN 1
-
-// INPUT SOUND
-#define USE_I2S 0
-#define USE_ADC 1
-#define ADC_MIC_PIN A5
-#define ADC_MIC_VCC_PIN 23
-#define ADC_MIC_GND_PIN 22
-
-
-
-
 #ifdef SERIAL_PORT_HARDWARE_OPEN6
   #define TEENSY40
   HardwareSerial &SERIAL_PORT_DMX  = Serial1;
@@ -302,6 +278,7 @@ public:
     void loop() override
     {}
 };
+#if OUTPUT_FASTLED_DMX
 class RenderFastLEDDMX : public _RenderFastLED
 {
 public:
@@ -310,6 +287,8 @@ public:
         FastLED.addLeds<DMXSIMPLE,DMX_TX_PIN,RGB>(leds, IMAGE_SIZE);
     }
 };
+#endif
+#if OUTPUT_FASTLED_NEOPIXEL
 class RenderFastLEDNeoPixel : public _RenderFastLED
 {
 public:
@@ -318,7 +297,7 @@ public:
         FastLED.addLeds<WS2812B, NEOPIXEL_PIN, GRB>(leds, IMAGE_SIZE);
     }
 };
-
+#endif
 
 
 class RenderReorder : public _DMXWriter
