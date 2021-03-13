@@ -17,8 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  * See 'LICENSE.txt' included within this release
  *
-*/
-
+ */
 /**
  * $Id$
  *
@@ -30,45 +29,99 @@
 #ifndef _PCM_H
 #define _PCM_H
 
-//#include "dlldefs.h"
+#include <stdlib.h>
 
-class PCM
+
+// FFT_LENGTH is number of magnitude values available from getSpectrum().
+// Internally this is generated using 2xFFT_LENGTH samples per channel.
+#define FFT_LENGTH 512
+class Test;
+class AutoLevel;
+
+enum CHANNEL
+{
+    CHANNEL_L = 0,
+    CHANNEL_0 = 0,
+    CHANNEL_R = 1,
+    CHANNEL_1 = 1
+};
+
+class 
+#ifdef WIN32 
+DLLEXPORT 
+#endif 
+PCM
 {
 public:
-    float *PCMd[2];
-    int start;
-
-    /** Use wave smoothing */
-    float waveSmoothing;
-
-    int *ip;
-    float *w;
-    int newsamples;
-
-    int numsamples; //size of new PCM info
-    float *pcmdataL;     //holder for most recent pcm data
-    float *pcmdataR;     //holder for most recent pcm data
-
-    /** PCM data */
-    float vdataL[512];  //holders for FFT data (spectrum)
-    float vdataR[512];
-
-    static int maxsamples;
+    /* maximum number of sound samples that are actually stored. */
+    static const size_t maxsamples=2048;
 
     PCM();
-
     ~PCM();
 
-    void initPCM(int maxsamples);
+    void addPCMfloat( const float *PCMdata, size_t samples );
+    void addPCMfloat_2ch( const float *PCMdata, size_t count );
+    void addPCM16( const short [2][512] );
+    void addPCM16Data( const short* pcm_data, size_t samples );
+    void addPCM8( const unsigned char [2][1024] );
+    void addPCM8_512( const unsigned char [2][512] );
 
-    void addPCMfloat(const float *PCMdata, int samples);
-    //void addPCMfloat_mono(const float *PCMdata, int samples);
-    void addPCM16Data(const short *pcm_data, short samples);
-    //void addPCM16Data_mono(const short *pcm_data, short samples);
+    /**
+     * PCM data
+     * When smoothing=0 is copied directly from PCM buffers. smoothing=1.0 is almost a straight line.
+     * The returned data will 'wrap' if more than maxsamples are requested.
+     */
+    void getPCM(float *data, CHANNEL channel, size_t samples, float smoothing);
 
-    void getPCM(float *data, int samples, int channel, int freq, float smoothing, int derive);
+    /** Spectrum data
+     * Smoothing is not fully implemented, only none (smoothing==0) or a little (smoothing!=0).
+     * The returned data will be zero padded if more than FFT_LENGTH values are requested
+     */
+    void getSpectrum(float *data, CHANNEL channel, size_t samples, float smoothing);
 
-    int getPCMnew(float *PCMdata, int channel, float smoothing, int derive, int reset);
+  	static Test* test();
+
+private:
+    // mem-usage:
+    // pcmd 2x2048*4b    = 16K
+    // vdata 2x512x2*8b  = 16K
+    // spectrum 2x512*4b = 4k
+    // w = 512*8b        = 4k
+
+    // circular PCM buffer
+    // adjust "volume" of PCM data as we go, this simplifies everything downstream...
+    // normalize to range [-1.0,1.0]
+    float pcmL[maxsamples];
+    float pcmR[maxsamples];
+    int start;
+    size_t newsamples;
+
+    // raw FFT data
+    float freqL[FFT_LENGTH*2];
+    float freqR[FFT_LENGTH*2];
+    // magnitude data
+    float spectrumL[FFT_LENGTH];
+    float spectrumR[FFT_LENGTH];
+
+    // for FFT library
+    int *ip;
+    float *w;
+
+    void freePCM();
+
+    // copy data out of the circular PCM buffer
+    void _copyPCM(float *PCMdata, int channel, size_t count);
+    void _copyPCM(double *PCMdata, int channel, size_t count);
+
+    // update FFT data if new samples are available.
+    void _updateFFT();
+    void _updateFFT(size_t channel);
+
+    friend class PCMTest;
+
+    // state for tracking audio level
+    double level;
+    class AutoLevel *leveler;
 };
 
 #endif /** !_PCM_H */

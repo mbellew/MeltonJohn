@@ -1,13 +1,43 @@
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "Patterns.h"
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
 //#include <SerialFlash.h>
-//#include <OctoWS2811.h>
+#include <OctoWS2811.h>
+#include <DmxSimple.h>
+//#include <DMXSerial.h>
+#include <FastLED.h>
+
+#define DebugSerial Serial
+
+
+
+#define DEBUG_LOG 0
+
+// IMAGE_SIZE is in config.h
+
+// OUTPUT LIGHT
+#define OUTPUT_FASTLED_NEOPIXEL 1
+#define OUTPUT_FASTLED_DMX 0
+#define OUTPUT_OCTO 0
+#define OUTPUT_DEBUG 0
+#define OUTPUT_MYDMX 0
+
+#define NEOPIXEL_PIN 2
+#define DMX_TX_PIN 1
+
+// INPUT SOUND
+#define USE_I2S 0
+#define USE_ADC 1
+#define ADC_MIC_PIN A5
+#define ADC_MIC_VCC_PIN 23
+#define ADC_MIC_GND_PIN 22
+
+
 
 
 #ifdef SERIAL_PORT_HARDWARE_OPEN6
@@ -17,17 +47,18 @@
   HardwareSerial &SERIAL_PORT_DMX  = Serial1;
 #endif
 
-#if 1
-#define LOG_print(x) Serial.print(x)
-//#define LOG_println() Serial.println()
-#define LOG_println(x) Serial.println(x)
+
+
+
+#if DEBUG_LOG
+#define LOG_print(x) DebugSerial.print(x)
+//#define LOG_println() SerialDebugSerial.println()
+#define LOG_println(x) DebugSerial.println(x)
 #else
 #define LOG_print(x)
 #define LOG_println(x)
 #endif
 
-const int MIC_ANALOG_IN = A5;
-const int BATT_ANALOG_IN = A3;
 
 
 typedef uint32_t color_t;
@@ -60,11 +91,15 @@ void LOG_format(int n)
 }
 
 
-    
-    AudioInputI2S adc;
-    AudioAnalyzeFFT1024 fft;
-    AudioConnection patchCord(adc, 0, fft, 0);
-    AudioControlSGTL5000 audioShield;
+#if USE_I2S
+AudioInputI2S adc;                        // AudioBoard
+AudioControlSGTL5000 audioShield;
+#endif
+#if USE_ADC
+AudioInputAnalog adc(ADC_MIC_PIN);       // built-in ADC
+#endif
+AudioAnalyzeFFT1024 fft;
+AudioConnection patchCord(adc, fft);
 
 struct SoundFFT
 {
@@ -72,48 +107,31 @@ struct SoundFFT
     float volume_level = 20;
     float att[3] = {20, 20, 20};
 
-    SoundFFT() // :  adc(), fft(), patchCord(adc, 0, fft, 0), audioShield()
+    SoundFFT()
     {
     }
 
     void begin()
     {
         AudioMemory(12);
+#if USE_I2S
         audioShield.enable();
         audioShield.inputSelect(AUDIO_INPUT_LINEIN);
+#endif
         fft.windowFunction(AudioWindowHanning1024);
     }
 
     /** return three numbers between 0.0 and 1.0 **/
     boolean next(Spectrum &ret)
     {
-        int count = 0;
-        float sums[] = {0, 0, 0};
         if (!fft.available())
           return false;
           
-        sums[0] += fft.read(0, 1);
-        sums[1] += fft.read(2, 8);
-        sums[2] += fft.read(9, 16);
-        count++;
+        float sums[] = {0, 0, 0};
+        sums[0] = fft.read(0, 1);
+        sums[1] = fft.read(2, 8);
+        sums[2] = fft.read(9, 16);
        
-if (0)
-{
-  for (int i=0; i<40; i++) {
-float n = fft.read(i);
-if (n >= 0.01) {
-Serial.print(n);
-Serial.print(" ");
-} else {
-Serial.print("  -  "); // don't print "0.00"
-}
-}
-Serial.println();
-}
-
-        sums[0] /= count;
-        sums[1] /= count;
-        sums[2] /= count;
         //LOG_print("count "); LOG_format(count); LOG_println();
         //LOG_print("raw   "); LOG_format((int)(sums[0]*1000.0)); LOG_format((int)(sums[1]*1000.0)); LOG_format((int)(sums[2]*1000.0)); LOG_println();
 
@@ -142,7 +160,7 @@ Serial.println();
         ret.treb_att = att[2];
         ret.vol = (sums[0] + sums[1] + sums[2]);
 
-        if (1 == 0)
+        if (1 == 1)
         {
             LOG_print("ret   ");
             LOG_format((int) (ret.bass * 1000.0));
@@ -161,44 +179,47 @@ class _DMXWriter
 {
 public:
     virtual void begin() = 0;
-    virtual void write(uint8_t data[], size_t size) = 0;
+    virtual void write(CRGB data[], size_t count) = 0;
     virtual void loop() = 0;
 };
 
 
-#if 0
-class RenderOcto : Renderer
+#if OUTPUT_OCTO
+DMAMEM int octo_displayMemory[IMAGE_SIZE * 6];
+int octo_drawingMemory[IMAGE_SIZE * 6];
+OctoWS2811 octo_leds(IMAGE_SIZE, octo_displayMemory, octo_drawingMemory, WS2811_GRB | WS2811_800kHz);
+class RenderOcto : _DMXWriter
 {
-    static DMAMEM int displayMemory[512 * 6];
-    static int drawingMemory[512 * 6];
-    size_t ledCount = 512;
-    OctoWS2811 leds;
+    OctoWS2811 octo_leds;
 
 public:
-    RenderOcto(size_t ledCount_) :
-            ledCount(min(512, ledCount_)),
-            leds(min(512, ledCount_), displayMemory, drawingMemory, WS2811_GRB | WS2811_800kHz)
+    RenderOcto() : leds(IMAGE_SIZE, octo_displayMemory, octo_drawingMemory, WS2811_GRB | WS2811_800kHz)
     {
     }
 
-    void begin()
+    void begin() override
     {
         leds.begin();
         leds.show();
     }
 
-    void write(uint8_t data[], size_t size)
+    void write(CRGB data[], size_t count) override
     {
-        size_t count = min(size, 3 * ledCount) / 3;
+        size_t count = min(count, IMAGE_SIZE);
         for (size_t i = 0; i < count; i++)
-            leds.setPixel(i, data[i * 3 + 0], data[i * 3 + 1], data[i * 3 + 2]);
+            leds.setPixel(i, data[i].r, data[i].g, data[i].b);
         leds.show();
+    }
+
+    void loop() override
+    {
     }
 };
 #endif
 
 
-class RenderDMX : _DMXWriter
+#if OUTPUT_MYDMX
+class RenderMyDMX : public _DMXWriter
 {
     // extra buffer for full dmx frame
     static uint8_t tx_buffer[512*3];
@@ -206,7 +227,7 @@ class RenderDMX : _DMXWriter
     HardwareSerial &serial;
 
 public:
-    RenderDMX(HardwareSerial &serial_) :
+    RenderMyDMX(HardwareSerial &serial_) :
             serial(serial_)
     {
 #ifdef TEENSY40
@@ -214,11 +235,11 @@ public:
 #endif
     }
 
-    void begin()
+    void begin() override
     {
     }
 
-    void write(byte data[], size_t size)
+    void write(CRGB data[], size_t count) override
     {
         serial.flush();
         delayMicroseconds(44);
@@ -229,33 +250,36 @@ public:
         serial.begin(250000, SERIAL_8N2);
         serial.write((uint8_t)0);
 
-        serial.write(data, size);
+        serial.write((uint8_t *)data, count*3);
 
         for (size_t i=size ; i<128 ; i++)
             serial.write((uint8_t)0);
     }
 
-    void loop(){}
+    void loop() override
+    {}
 };
+#endif
 
-class RenderDebug : _DMXWriter
+
+class RenderDebug : public _DMXWriter
 {
 public:
     void begin()
     {
     }
 
-    void write(uint8_t data[], size_t size)
+    void write(CRGB rgb[], size_t count)
     {
-        size_t count = size / 3;
         for (size_t i = 0; i < count; i++)
         {
-            unsigned long ul = ((unsigned long)data[i * 3 + 0] << 16) + ((unsigned long)data[i * 3 + 1] << 8) + (unsigned long)data[i * 3 + 2];
+            CRGB c = rgb[i];
+            unsigned long ul = ((unsigned long)c.r << 16) + ((unsigned long)c.g << 8) + (unsigned long)c.b;
             ul |= 0x80000000;
-            Serial.print(ul, 16);
-            Serial.print(", ");
+            DebugSerial.print(ul, 16);
+            DebugSerial.print(", ");
         }
-        Serial.println();
+        DebugSerial.println();
     }
 
     void loop(){}
@@ -263,17 +287,77 @@ public:
 
 
 
+class _RenderFastLED : public _DMXWriter
+{
+protected:
+    CRGB leds[IMAGE_SIZE];
+
+public:
+    void write(CRGB data[], size_t count) override
+    {
+        memcpy((uint8_t *)leds, (uint8_t *)data, count*sizeof(CRGB));
+        FastLED.show();
+    }
+
+    void loop() override
+    {}
+};
+class RenderFastLEDDMX : public _RenderFastLED
+{
+public:
+    void begin() override
+    {
+        FastLED.addLeds<DMXSIMPLE,DMX_TX_PIN,RGB>(leds, IMAGE_SIZE);
+    }
+};
+class RenderFastLEDNeoPixel : public _RenderFastLED
+{
+public:
+    void begin() override
+    {
+        FastLED.addLeds<WS2812B, NEOPIXEL_PIN, GRB>(leds, IMAGE_SIZE);
+    }
+};
 
 
 
-void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledData[], uint8_t rgbData[], size_t size)
+class RenderReorder : public _DMXWriter
+{
+  _DMXWriter &delegate;
+public:
+  RenderReorder(_DMXWriter &d) : delegate(d)
+  {
+  }
+
+  void begin() override
+  {
+    delegate.begin();
+  }
+
+  void loop() override
+  {
+    delegate.loop();
+  }
+
+  void write(CRGB data[], size_t count) override
+  {
+        CRGB to[count];
+        for (size_t i=0 ; i<count/2 ; i++)
+        {
+           to[IMAGE_SIZE-1-i] = data[(i*2)];
+           to[i] = data[i*2+1];
+        }
+        delegate.write(to,count);
+  }
+};
+
+
+void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledData[], CRGB rgbData[], size_t size)
 {
     if (vibrance != 0.0)
     {
-
         for (size_t i=0 ; i<size ; i+=3)
         {
-
             float r = ledData[i], g = ledData[i+1], b = ledData[i+2];
             float mx = (float)fmax(fmax(r,g),b);
             float avg = (r + g + b) / 3.0f;
@@ -285,161 +369,188 @@ void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledDat
             ledData[i+2] = b * (1 - adjust) + adjust * mx;
         }
     }
-    for (size_t i=0 ; i<size ; i++)
+    size_t count = size/3;
+    for (size_t i=0 ; i<count ; i++)
     {
-        int v = (int)round(pow(ledData[i], gamma) * maxBrightness * 255);
-        rgbData[i]  = (uint8_t)(v>255 ? 255 : v<0 ? 0 : v);
+        rgbData[i].r = (int)round(pow(ledData[i*3+0], gamma) * maxBrightness * 255);
+        rgbData[i].g = (int)round(pow(ledData[i*3+1], gamma) * maxBrightness * 255);
+        rgbData[i].b = (int)round(pow(ledData[i*3+2], gamma) * maxBrightness * 255);
     }
 }
 
 
-
-
-
 class SoundFFT sound;
-//class RenderOcto renderer(IMAGE_SIZE);
-class RenderDMX outputDMX(SERIAL_PORT_DMX);
+#if OUTPUT_FASTLED_DMX
+class RenderFastLEDDMX outputFastLED;
+#endif
+#if OUTPUT_FASTLED_NEOPIXEL
+class RenderFastLEDNeoPixel raw;
+class RenderReorder outputFastLED(raw);
+#endif
 class RenderDebug outputDebug;
 Renderer *renderPattern = createRenderer();
 
-
-void setup_()
+void testPattern()
 {
-//    // Power for microphone
-//    pinMode(22, OUTPUT);
-//    digitalWrite(22, LOW);
-//    pinMode(23, OUTPUT);
-//    digitalWrite(23, HIGH);
+    uint8_t C = 0x40;
+    CRGB rgbBuffer[IMAGE_SIZE];
 
-    // anlog volumn pot
-    pinMode(A1, INPUT);
+    unsigned long int i=1;
+    while (0)
+    {
+        rgbBuffer[(i-1)%IMAGE_SIZE] = CRGB(0,0,0);
+        rgbBuffer[(i)%IMAGE_SIZE] = CRGB(255,255,255);
+        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
+        i++;
+        delay(200);
+    }
 
-    SERIAL_PORT_MONITOR.begin(250000);
-    outputDMX.begin();
-    sound.begin();
-
-    uint8_t C = 0x20;
-    uint8_t buffer[3*IMAGE_SIZE];
-    
     for (size_t rep = 0; rep < 3; rep++)
     {
         for (size_t i=0; i < IMAGE_SIZE; )
         {
             if (i<IMAGE_SIZE)
             {
-            buffer[i*3+0] = C;
-            buffer[i*3+1] = 0x00;
-            buffer[i*3+2] = 0x00;
+                rgbBuffer[i].r = C;
+                rgbBuffer[i].g = 0x00;
+                rgbBuffer[i].b = 0x00;
             }
             i++;
             if (i<IMAGE_SIZE)
             {
-            buffer[i*3+0] = 0;
-            buffer[i*3+1] = C;
-            buffer[i*3+2] = 0x00;
+                rgbBuffer[i].r = 0x00;
+                rgbBuffer[i].g = C;
+                rgbBuffer[i].b = 0x00;
             }
             i++;
             if (i<IMAGE_SIZE)
             {
-            buffer[i*3+0] = 0;
-            buffer[i*3+1] = 0x00;
-            buffer[i*3+2] = C;
+                rgbBuffer[i].r = 0x00;
+                rgbBuffer[i].g = 0x00;
+                rgbBuffer[i].b = C;
             }
             i++;
         }
-        outputDMX.write(buffer,3*IMAGE_SIZE);
+        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
         delay(3000);
 
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
-            buffer[i*3+0] = C;
-            buffer[i*3+1] = 0x00;
-            buffer[i*3+2] = 0x00;
+            rgbBuffer[i].r = C;
+            rgbBuffer[i].g = 0x00;
+            rgbBuffer[i].b = 0x00;
         }
-        outputDMX.write(buffer,3*IMAGE_SIZE);
+        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
-            buffer[i*3+0] = 0x00;
-            buffer[i*3+1] = C;
-            buffer[i*3+2] = 0x00;
+            rgbBuffer[i].r = 0x00;
+            rgbBuffer[i].g = C;
+            rgbBuffer[i].b = 0x00;
         }
-        outputDMX.write(buffer,3*IMAGE_SIZE);
+        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
-            buffer[i*3+0] = 0x00;
-            buffer[i*3+1] = 0x00;
-            buffer[i*3+2] = C;
+            rgbBuffer[i].r = 0x00;
+            rgbBuffer[i].g = 0x00;
+            rgbBuffer[i].b = C;
         }
-        outputDMX.write(buffer,3*IMAGE_SIZE);
+        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
     }
+}
+
+void setup_()
+{
+#if USE_ADC
+    // Power for microphone
+    pinMode(ADC_MIC_GND_PIN, OUTPUT);
+    digitalWrite(ADC_MIC_GND_PIN, LOW);
+    pinMode(ADC_MIC_VCC_PIN, OUTPUT);
+    digitalWrite(ADC_MIC_VCC_PIN, HIGH);
+#endif
+#if USE_I2S
+    // analog volume pot
+    pinMode(A1, INPUT);
+#endif
+    DebugSerial.begin(115200);
+    for (int i=0;i<100 && !DebugSerial;i++) delay(1);
+    delay(1000);
+
+    sound.begin();
+
+    outputFastLED.begin();
+
+    if (1)
+        testPattern();
+
+    LOG_println("exit setup()");
 };
 
 
-unsigned long int frame = 0;
 
-
-void loop_1() {
-  float n;
-  int i;
+void loop_fft()
+{
     Spectrum spectrum;
 
-  if (sound.next(spectrum)) {
-    // each time new FFT data is available
-    // print it all to the Arduino Serial Monitor
-
-    if (0)
+    //if (fft.available())
+    if (sound.next(spectrum))
     {
-    LOG_print("FFT: ");
-    for (i=0; i<40; i++) {
-      n = fft.read(i);
-      if (n >= 0.01) {
-        LOG_print(n);
-        LOG_print(" ");
-      } else {
-        LOG_print("  -  "); // don't print "0.00"
-      }
+//        LOG_print("FFT: ");
+//        for (int i=0; i<40; i++)
+//        {
+//            float n = fft.read(i);
+//            if (n >= 0.01)
+//            {
+//                LOG_print(n);
+//                LOG_print(" ");
+//            }
+//            else
+//            {
+//                LOG_print("  -  "); // don't print "0.00"
+//            }
+//        }
+//        LOG_println();
     }
-    LOG_println();
-  }
-  }
 }
 
 
-
-float brightness = 0.5f;
+unsigned long int loop_frame = 0;
+float loop_brightness = 0.5f;
 
 void loop_()
 {
-    //LOG_println("loop");
-    //LOG_format(frame); LOG_println();
-    // read sound sensor and delay
-    // if we're using 1024 samples, that's about 43FPS, so shouldn't need to wait
     Spectrum spectrum;
-    if (sound.next(spectrum))
-    {
-      frame++;
+    if (!sound.next(spectrum))
+      return;
+
+    loop_frame++;
     
-    // LOG_print("next "); LOG_println(frame);
+    LOG_println(""); LOG_print("frame"); LOG_println(loop_frame);
+    float f32values[IMAGE_SIZE*3];
+    CRGB rgbValues[IMAGE_SIZE];
 
-      float f32values[IMAGE_SIZE*3];
-      uint8_t u8values[IMAGE_SIZE*3];
+    LOG_println("renderFrame");
+    DebugSerial.flush();
+    delay(1);
+    renderPattern->renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
 
-    //   LOG_println("renderFrame");
-        renderPattern->renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
-     
-    //   LOG_println("mapToDisplay");
-      mapToDisplay(brightness, 0.0, 2.5, f32values, u8values, IMAGE_SIZE*3);     
-     
-    //   LOG_println("outputDMX.write");
-      outputDMX.write(u8values, IMAGE_SIZE*3);
-      //outputDebug.write(buffer, sizeof(buffer));
+    // LOG_println("mapToDisplay");
+    mapToDisplay(loop_brightness, 0.0, 2.5, f32values, rgbValues, IMAGE_SIZE*3);
+ 
+    // LOG_println("outputFastLED.write");
+#if OUTPUT_FASTLED_DMX || OUTPUT_FASTLED_NEOPIXEL
+    outputFastLED.write(rgbValues, IMAGE_SIZE);
+#endif
+#if OUTPUT_DEBUG
+    outputDebug.write(rgbValues, IMAGE_SIZE);
+#endif
 
+#if USE_I2S
       int volPot = analogRead(A1);
-      brightness = 0.5 * (brightness + volPot/1023.0);
-    //   LOG_print(volPot);
-    }
-}
+      loop_brightness += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
+      // LOG_print(volPot);
+#endif
 
+}

@@ -25,3 +25,18 @@ add_executable(MeltonJohn
         src/Renderer.h
         src/config.h)
 target_link_libraries(MeltonJohn pulse pulse-simple)
+
+
+
+
+project(TeensyMelton)
+add_executable(TeensyMelton
+        TeensyMelton/beat_data.cpp
+        TeensyMelton/beat_data.h
+        TeensyMelton/main.cpp
+        TeensyMelton/MultiLayerPatterns.cpp
+        TeensyMelton/Patterns.h
+        TeensyMelton/Patterns.cpp
+        TeensyMelton/Renderer.cpp
+        TeensyMelton/Renderer.h
+        TeensyMelton/config.h)

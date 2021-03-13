@@ -152,9 +152,17 @@ void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledDat
     }
 }
 
+extern void hsltest();
+void test()
+{
+    hsltest();
+}
+
 
 int main(int argc, char *argv[])
 {
+    test();
+
     FILE *output = stdout;
 
     // handle SIGTERM to make running as a service work better
@@ -204,7 +212,6 @@ int main(int argc, char *argv[])
 
 
     PCM pcm;
-    pcm.initPCM(2048);
     BeatDetect beatDetect(&pcm);
     Renderer *renderer = createRenderer();
 

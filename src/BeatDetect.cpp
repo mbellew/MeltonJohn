@@ -21,188 +21,163 @@
 /**
  * Takes sound data from wherever and returns beat detection values
  * Uses statistical Energy-Based methods. Very simple
- *
+ * 
  * Some stuff was taken from Frederic Patin's beat-detection article,
  * you'll find it online
  */
 
 #include <stdlib.h>
 #include <stdio.h>
+#include "PCM.hpp"
 #include <cmath>
+#include <cassert>
 #include "BeatDetect.hpp"
-#include "beat_data.h"
 
 
-BeatDetect::BeatDetect(PCM *pcm)
+BeatDetect::BeatDetect(PCM *_pcm)
 {
-    int x, y;
+    this->pcm=_pcm;
 
-    this->pcm = pcm;
+    this->vol_instant=0;
+    this->vol_history=0;
+    for (unsigned y=0;y<BEAT_HISTORY_LENGTH;y++)
+        this->vol_buffer[y]=0;
 
-    this->vol_instant = 0;
-    this->vol_history = 0.1;
+    this->beat_buffer_pos=0;
 
-    for (y = 0; y < 80; y++)
-    {
-        this->vol_buffer[y] = 0;
-    }
+    this->bass_instant = 0;
+    this->bass_history = 0;
+    for (unsigned y=0;y<BEAT_HISTORY_LENGTH;y++)
+        this->bass_buffer[y]=0;
 
-    this->beat_buffer_pos = 0;
+    this->mid_instant = 0;
+    this->mid_history = 0;
+    for (unsigned y=0;y<BEAT_HISTORY_LENGTH;y++)
+        this->mid_buffer[y]=0;
 
-    for (x = 0; x < 32; x++)
-    {
-        this->beat_instant[x] = 0;
-        this->beat_history[x] = 0;
-        this->beat_val[x] = 1.0;
-//        this->beat_att[x] = 1.0;
-        this->beat_variance[x] = 0;
-        for (y = 0; y < 80; y++)
-        {
-            this->beat_buffer[x][y] = 0;
-        }
-    }
-    this->bg_fadein = 0.0;
-    this->bg_pos = 0;
-    this->bg_history = 0.1;
+    this->treb_instant = 0;
+    this->treb_history = 0;
+    for (unsigned y=0;y<BEAT_HISTORY_LENGTH;y++)
+        this->treb_buffer[y]=0;
 
-    // output variables
     this->treb = 0;
     this->mid = 0;
     this->bass = 0;
     this->vol_old = 0;
-    this->beat_sensitivity = 10.00;
+    this->beatSensitivity = 1.00;
     this->treb_att = 0;
     this->mid_att = 0;
     this->bass_att = 0;
+    this->vol_att = 0;
     this->vol = 0;
 }
 
 
-BeatDetect::~BeatDetect() = default;
+BeatDetect::~BeatDetect()
+{
+
+}
+
+
+void BeatDetect::reset()
+{
+    this->treb = 0;
+    this->mid = 0;
+    this->bass = 0;
+    this->treb_att = 0;
+    this->mid_att = 0;
+    this->bass_att = 0;
+    this->vol_att = 0;
+    this->vol_old = 0;
+    this->vol_instant=0;
+}
 
 
 void BeatDetect::detectFromSamples()
 {
-    float vol_prev = vol;
+    vol_old = vol;
+    bass=0;
+    mid=0;
+    treb=0;
+    vol=0;
 
-    // these strictly output variables make sure we aren't using them to compute new values
-    this->vol_old = 0;
-    this->vol = 0;
-    this->treb = 0;
-    this->bass = 0;
-    this->mid = 0;
-    this->treb_att = 0;
-    this->mid_att = 0;
-    this->bass_att = 0;
+    float vdataL[FFT_LENGTH];
+    float vdataR[FFT_LENGTH];
+    pcm->getSpectrum(vdataL, CHANNEL_0, FFT_LENGTH, 0.0);
+    pcm->getSpectrum(vdataR, CHANNEL_1, FFT_LENGTH, 0.0);
 
-    getBeatVals(pcm->pcmdataL, pcm->pcmdataR);
-    this->vol_old = vol_prev;
+    // OK, we're not really using this number 44.1 anywhere
+    // This is more of a nod to the fact that if the actually data rate is REALLY different
+    // then in theory the bass/mid/treb ranges should be adjusted.
+    // In practice, I doubt it would adversely affect the actually display very much
+    getBeatVals(44100.0f, FFT_LENGTH, vdataL, vdataR);
 }
 
 
-void BeatDetect::getBeatVals(float *vdataL, float *vdataR)
+void BeatDetect::getBeatVals( float samplerate, unsigned fft_length, float *vdataL, float *vdataR )
 {
-    int linear = 0;
-    int x, y;
-    float temp2 = 0;
+    assert(fft_length >= 256);
+    unsigned ranges[4]  = {0, 3, 23, 255};
 
-    vol_instant = 0;
-    for (x = 0; x < 16; x++)
-    {
-        beat_instant[x] = 0;
-        for (y = linear * 2; y < (linear + 8 + x) * 2; y++)
-        {
-            beat_instant[x] += (vdataL[y] * vdataL[y]) + (vdataR[y] * vdataR[y]);
-            vol_instant += ((vdataL[y] * vdataL[y]) + (vdataR[y] * vdataR[y]));
-        }
-        beat_instant[x] /= 8.0f + x;
-        linear = y / 2;
-        beat_history[x] += (beat_instant[x] - beat_buffer[x][beat_buffer_pos]) * .0125;
-        beat_buffer[x][beat_buffer_pos] = beat_instant[x];
-        beat_val[x] = beat_instant[x] / beat_history[x];
-    }
-    vol_instant /= 512.0f;
+    bass_instant=0;
+    for (unsigned i=ranges[0] ; i<ranges[1] ; i++)
+        bass_instant += vdataL[i] + vdataR[i];
+    bass_history -= bass_buffer[beat_buffer_pos] * (1.0/BEAT_HISTORY_LENGTH);
+    bass_buffer[beat_buffer_pos] = bass_instant;
+    bass_history += bass_instant * (1.0/BEAT_HISTORY_LENGTH);
 
-    vol_history += (vol_instant - vol_buffer[beat_buffer_pos]) * .0125;
+    mid_instant=0;
+    for (unsigned i=ranges[1] ; i<ranges[2] ; i++)
+        mid_instant += vdataL[i] + vdataR[i];
+    mid_history -= mid_buffer[beat_buffer_pos] * (1.0/BEAT_HISTORY_LENGTH);
+    mid_buffer[beat_buffer_pos] = mid_instant;
+    mid_history += mid_instant * (1.0/BEAT_HISTORY_LENGTH);
+
+    treb_instant = 0;
+    for (unsigned i=ranges[2] ; i<ranges[3] ; i++)
+        treb_instant += vdataL[i] + vdataR[i];
+    treb_history -= treb_buffer[beat_buffer_pos] * (1.0/BEAT_HISTORY_LENGTH);
+    treb_buffer[beat_buffer_pos] = treb_instant;
+    treb_history += treb_instant * (1.0/BEAT_HISTORY_LENGTH);
+
+    vol_instant  = (bass_instant + mid_instant + treb_instant) / 3.0f;
+    vol_history -= (vol_buffer[beat_buffer_pos])* (1.0/BEAT_HISTORY_LENGTH);
     vol_buffer[beat_buffer_pos] = vol_instant;
+    vol_history += vol_instant * (1.0/BEAT_HISTORY_LENGTH);
 
-    bass = (beat_instant[0]) / (1.5f * (float)fmax(beat_history[0],0.0001f));
+//    fprintf(stderr, "%6.3f %6.2f %6.3f\n", bass_history/vol_history, mid_history/vol_history, treb_history/vol_history);
+    bass = bass_instant / fmax(0.0001, bass_history);
+    mid  = mid_instant  / fmax(0.0001, mid_history);
+    treb = treb_instant / fmax(0.0001, treb_history);
+    vol  = vol_instant  / fmax(0.0001, vol_history);
 
-    temp2 = 0;
-    mid = 0;
-    for (x = 1; x < 10; x++)
-    {
-        mid += (beat_instant[x]);
-        temp2 += (beat_history[x]);
-    }
-    mid = mid / (1.5f * (float)fmax(temp2,0.0001f));
-
-    temp2 = 0;
-    treb = 0;
-    for (x = 10; x < 16; x++)
-    {
-        treb += (beat_instant[x]);
-        temp2 += (beat_history[x]);
-    }
-    treb = treb / (1.5f * (float)fmax(temp2,0.0001f));
-
-    vol = vol_instant / (1.5f * (float)fmax(vol_history,0.0001f));
-
-    if (std::isnan(treb))
-    {
+    if ( std::isnan( treb ) ) {
         treb = 0.0;
     }
-    if (std::isnan(mid))
-    {
+    if ( std::isnan( mid ) ) {
         mid = 0.0;
     }
-    if (std::isnan(bass))
-    {
+    if ( std::isnan( bass ) ) {
         bass = 0.0;
     }
-    if (std::isnan(vol))
-    {
-        vol = 0.0;
-    }
-
-    // if volume is very low, the add in background
-    if (vol_history < 0.00001)
-        bg_fadein = fmin(1.0f, bg_fadein + 0.01f);
-    else if (vol_history > 0.00002)
-        bg_fadein = fmax(0.0f, bg_fadein - 0.05f);
-    bg_pos = (bg_pos+1) % backgroundMusicSize;
-    float bg_bass = backgroundMusic[bg_pos][0];
-    float bg_mid  = backgroundMusic[bg_pos][1];
-    float bg_treb = backgroundMusic[bg_pos][2];
-    float bg_vol  = bg_bass + bg_mid + bg_treb;
-    bg_history = (bg_history * 0.99f) + 0.1f;
-
-    vol  += bg_vol / (1.5 * bg_history);
-
-    bass += bg_fadein * bg_bass;
-    mid  += bg_fadein * bg_mid;
-    treb += bg_fadein * bg_treb;
 
     treb_att = .6f * treb_att + .4f * treb;
     mid_att  = .6f * mid_att + .4f * mid;
     bass_att = .6f * bass_att + .4f * bass;
+    vol_att =  .6f * vol_att + .4f * vol;
 
-    if (bass_att > 100)
-        bass_att = 100;
-    if (bass > 100)
-        bass = 100;
-    if (mid_att > 100)
-        mid_att = 100;
-    if (mid > 100)
-        mid = 100;
-    if (treb_att > 100)
-        treb_att = 100;
-    if (treb > 100)
-        treb = 100;
-    if (vol > 100)
-        vol = 100;
+    if (bass_att>100) bass_att=100;
+    if (bass >100) bass=100;
+    if (mid_att>100) mid_att=100;
+    if (mid >100) mid=100;
+    if (treb_att>100) treb_att=100;
+    if (treb >100) treb=100;
+    if (vol_att>100) vol_att=100;
+    if (vol>100) vol=100;
 
     beat_buffer_pos++;
-    if (beat_buffer_pos > 79)
-        beat_buffer_pos = 0;
+    if (beat_buffer_pos>79)
+        beat_buffer_pos=0;
 }
+
+

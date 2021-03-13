@@ -1,6 +1,12 @@
 #include "Renderer.h"
 #include "Patterns.h"
 
+#if !DESKTOP
+#undef fprintf
+#define fprintf(a,b,c)
+#endif
+
+
 class MyBeat007
 {
     float sure;
@@ -103,7 +109,7 @@ private:
 
 public:
 
-    void renderFrame(float current_time, const Spectrum *beatDetect, float ledBuffer[], size_t bufferLen)
+    void renderFrame(float current_time, const Spectrum *beatDetect, float ledBuffer[], size_t bufferLen) override
     {
         mybeat.update(current_time, 30, beatDetect);
 
@@ -142,9 +148,16 @@ public:
             currentPattern = changeTo;
             context = PatternContext();
             currentPattern->setup(context);
+
+            // TODO call back for pattern change
+#if DESKTOP
             fprintf(stdout, "#%s\n", currentPattern->name());
 //        if (device && device != stdout)
 //            fprintf(device, "#%s\n", currentPattern->name());
+#else
+            Serial.println(currentPattern->name());
+            Serial.flush();
+#endif
             preset_start_time = current_time;
         }
         vol_old = beatDetect->vol;

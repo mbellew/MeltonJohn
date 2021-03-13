@@ -134,10 +134,10 @@ public:
 
     static Color rgb(float in[4])
     {
-        return Color(in[0], in[1], in[2], in[3]);
+        return {in[0], in[1], in[2], in[3]};
     }
 
-    explicit Color(unsigned int rgb) :
+    explicit Color(u_int32_t rgb) :
             rgba { ((rgb >> 16) & 0xff) / 255.0f, ((rgb >>  8) & 0xff) / 255.0f, ((rgb >>  0) & 0xff) / 255.0f, 1.0 }
     {
     }
@@ -179,6 +179,13 @@ public:
     {
     }
 
+    static Color hsl(float h, float s, float l)
+    {
+        float hsl[3] = {h,s,l};
+        float rgb[3];
+        hsl2rgb(hsl, rgb);
+        return {rgb[0], rgb[1], rgb[2], 1.0f};
+    }
 
     float r() const
     {
@@ -262,7 +269,7 @@ public:
 
     Color constrain() const
     {
-        return Color(::constrain(rgba.r), ::constrain(rgba.g), ::constrain(rgba.b), ::constrain(rgba.a));
+        return {::constrain(rgba.r), ::constrain(rgba.g), ::constrain(rgba.b), ::constrain(rgba.a)};
     }
 
     Color constrain2() const
@@ -283,11 +290,11 @@ public:
     }
 };
 
-const Color WHITE(1.0f, 1.0f, 1.0f);
-const Color BLACK;
-const Color RED(1.0f, 0.0f, 0.0f);
-const Color GREEN(0.0f, 1.0f, 0.0f);
-const Color BLUE(0.0f, 0.0f, 1.0f);
+const Color WHITE{1.0f, 1.0f, 1.0f};
+const Color BLACK{};
+const Color RED{1.0f, 0.0f, 0.0f};
+const Color GREEN{0.0f, 1.0f, 0.0f};
+const Color BLUE{0.0f, 0.0f, 1.0f};
 
 
 //inline Color &operator*=(Color &c, float f)
@@ -358,28 +365,28 @@ inline Color operator-(const Color &a, const Color &b)
 }
 
 
-class SimpleGenerator : public Generator
+class SinGenerator : public Generator
 {
     float offset, scale, speed;
 public:
-    SimpleGenerator() : offset(0.5), scale(0.5), speed(1.0)
+    SinGenerator() : offset(0.5), scale(0.5), speed(1.0)
     {}
 
-    SimpleGenerator(float _min, float _max, float _time)
+    SinGenerator(float _min, float _max, float _time)
     {
         offset = (_max + _min) / 2.0f;
         scale = fabsf(_max - _min) / 2.0f;
         speed = 2.0f * M_PIf32 / _time;
     }
 
-    SimpleGenerator(const SimpleGenerator &src)
+    SinGenerator(const SinGenerator &src)
     {
         offset = src.offset;
         scale = src.scale;
         speed = src.speed;
     }
 
-    void copy(const SimpleGenerator &src)
+    void copy(const SinGenerator &src)
     {
         offset = src.offset;
         scale = src.scale;
@@ -392,16 +399,49 @@ public:
     }
 };
 
+class CycleGenerator : public Generator
+{
+    float offset, scale, speed;
+public:
+    CycleGenerator() : offset(0.5), scale(0.5), speed(1.0)
+    {
+
+    }
+
+    CycleGenerator(float _offset, float _scale, float _speed) : offset(_offset), scale(_scale), speed(_speed)
+    {
+    }
+
+    CycleGenerator(const CycleGenerator &src)
+    {
+        offset = src.offset;
+        scale = src.scale;
+        speed = src.speed;
+    }
+
+    void copy(const CycleGenerator &src)
+    {
+        offset = src.offset;
+        scale = src.scale;
+        speed = src.speed;
+    }
+
+    float next(float t) const override
+    {
+        return fmodf(offset + t * speed, 1.0) * scale;
+    }
+};
+
 class Spirograph : public Generator
 {
 public:
-    SimpleGenerator a;
-    SimpleGenerator b;
+    SinGenerator a;
+    SinGenerator b;
 
     Spirograph() : a(), b()
     {}
 
-    Spirograph(const SimpleGenerator &_a, const SimpleGenerator &_b) : a(_a), b(_b)
+    Spirograph(const SinGenerator &_a, const SinGenerator &_b) : a(_a), b(_b)
     {
     }
 
@@ -434,6 +474,28 @@ public:
     }
 };
 
+
+class HSLGenerator : public ColorGenerator
+{
+    Generator *hue;
+    float s, l;
+public:
+    HSLGenerator(Generator *_h, float _s, float _l) : hue(_h), s(_s), l(_l)
+    {
+    }
+    Color next(float t) const
+    {
+        return Color::hsl(hue->next(t), s , l);
+    }
+};
+
+class PastelGenerator : public HSLGenerator
+{
+public:
+    PastelGenerator(Generator *_h) : HSLGenerator(_h, .70f, .80)
+    {
+    }
+};
 
 class PaletteGenerator : public ColorGenerator
 {
@@ -515,7 +577,7 @@ class PatternContext
 public:
     PatternContext() : fade_to(), fade(1.0), blur(false), cx(0.5), sx(1.0), dx(0.0), dx_wrap(true),
                        ob_size(0), ib_size(0),
-                       gamma(2.0), saturate(0),
+                       gamma(2.0), saturate(false),
                        time(0)
     {
     }
@@ -850,7 +912,7 @@ public:
         {
             PointContext &pt = ctx.points[i];
             pt.pos = i;
-            pt.rad = ((float) i) / (IMAGE_SIZE - 1) - 0.5;
+            pt.rad = ((float) i) / (IMAGE_SIZE - 1) - 0.5f;
             pt.sx = ctx.sx;
             pt.cx = ctx.cx;
             pt.dx = ctx.dx;
@@ -863,7 +925,7 @@ public:
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
             float center = IN(-0.5, 0.5, ctx.points[i].cx);
-            ctx.points[i].dx += (ctx.points[i].rad - center) * (ctx.points[i].sx - 1.0);
+            ctx.points[i].dx += (ctx.points[i].rad - center) * (ctx.points[i].sx - 1.0f);
         }
     }
 

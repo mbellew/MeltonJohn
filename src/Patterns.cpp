@@ -1,3 +1,4 @@
+#include <cassert>
 #include "Renderer.h"
 #include "Patterns.h"
 
@@ -53,11 +54,11 @@ PaletteGenerator palette4(
 );
 
 PaletteGenerator palette5(
-        Color(224u, 255, 79),
-        Color(255u, 102, 99),
-        Color(254u, 255, 254),
-        Color(11u, 57, 84),
-        Color(191u, 215, 234)
+        Color(224u, 255u, 79u),
+        Color(255u, 102u, 99u),
+        Color(254u, 255u, 254u),
+        Color(11u,   57u, 84u),
+        Color(191u, 215u, 234u)
 );
 
 PaletteGenerator *palettes[] =
@@ -74,13 +75,11 @@ PaletteGenerator *getRandomPalette()
 }
 
 
-
-
 class Waterfall : public AbstractPattern
 {
     ColorGenerator *lb_color;
     ColorGenerator *rb_color;
-    SimpleGenerator cx;
+    SinGenerator cx;
     PaletteGenerator *palette = nullptr;
     bool option = false, option_set = false;
 
@@ -89,16 +88,20 @@ public:
                   cx(0.05, 0.95, 6)
     {
         option = randomBool();
+        /*
         lb_color = new ComboGenerator(
-                new SimpleGenerator(0.2, 0.8, 1.5 * 5.5),
-                new SimpleGenerator(0.2, 0.8, 1.5 * 6.5),
-                new SimpleGenerator(0.2, 0.8, 1.5 * 7.5)
+                new SinGenerator(0.2, 0.8, 1.5 * 5.5),
+                new SinGenerator(0.2, 0.8, 1.5 * 6.5),
+                new SinGenerator(0.2, 0.8, 1.5 * 7.5)
         );
         rb_color = new ComboGenerator(
-                new SimpleGenerator(0.2, 0.8, 8),
-                new SimpleGenerator(0.2, 0.8, 7),
-                new SimpleGenerator(0.2, 0.8, 6)
+                new SinGenerator(0.2, 0.8, 8),
+                new SinGenerator(0.2, 0.8, 7),
+                new SinGenerator(0.2, 0.8, 6)
         );
+        */
+        lb_color = new PastelGenerator(new CycleGenerator(0.1,1.0,1.1));
+        rb_color = new PastelGenerator(new CycleGenerator(0.5,1.0,1.3));
     }
 
     explicit Waterfall(bool opt) : Waterfall()
@@ -120,13 +123,19 @@ public:
 
     void per_frame(PatternContext &ctx) override
     {
-        ctx.ob_left = palette->get(7 * (int) ctx.time);
+        if (option)
+            ctx.ob_left = palette->get(7 * (int) ctx.time);
+        else
+            ctx.ob_left = lb_color->next(ctx.time);
         ctx.ob_left = ctx.ob_left * (0.5f + ctx.treb / 2.0f);
         ctx.ib_left = ctx.ob_left;
         ctx.ib_left = ctx.ib_left.complement();
 
         //ctx.ob_right = rb_color->next( ctx.time );
-        ctx.ob_right = palette->get(5 * (int) (ctx.time + 2.0));
+        if (option)
+            ctx.ob_right = palette->get(5 * (int) (ctx.time + 2.0));
+        else
+            ctx.ob_right = rb_color->next(ctx.time);
         ctx.ob_right = ctx.ob_right * (0.5f + ctx.bass / 2.0f);
         ctx.ib_right = ctx.ob_right;
         ctx.ib_right = ctx.ib_right.complement();
@@ -251,13 +260,13 @@ public:
     {
         option = randomBool();
         color = new ComboGenerator(
-                new SimpleGenerator(0.2f, 0.8f, 0.5f * 5.5f),
-                new SimpleGenerator(0.2f, 0.8f, 0.5f * 6.5f),
-                new SimpleGenerator(0.2f, 0.8f, 0.5f * 7.5f)
+                new SinGenerator(0.2f, 0.8f, 0.5f * 5.5f),
+                new SinGenerator(0.2f, 0.8f, 0.5f * 6.5f),
+                new SinGenerator(0.2f, 0.8f, 0.5f * 7.5f)
         );
 
-        SimpleGenerator a(6, IMAGE_SIZE - 1 - 6, 13);
-        SimpleGenerator b(-2, 2, 5);
+        SinGenerator a(6, IMAGE_SIZE - 1 - 6, 13);
+        SinGenerator b(-2, 2, 5);
         x.a = a;
         x.b = b;
     }
@@ -352,13 +361,13 @@ public:
     {
         option = randomBool();
         color = new ComboGenerator(
-                new SimpleGenerator(0.2f, 0.8f, 5.5f),
-                new SimpleGenerator(0.2f, 0.8f, 6.5f),
-                new SimpleGenerator(0.2f, 0.8f, 7.5f)
+                new SinGenerator(0.2f, 0.8f, 5.5f),
+                new SinGenerator(0.2f, 0.8f, 6.5f),
+                new SinGenerator(0.2f, 0.8f, 7.5f)
         );
 
-        SimpleGenerator a(6, IMAGE_SIZE - 1 - 6, 13);
-        SimpleGenerator b(-2, 2, 5);
+        SinGenerator a(6, IMAGE_SIZE - 1 - 6, 13);
+        SinGenerator b(-2, 2, 5);
         x.a = a;
         x.b = b;
     }
@@ -469,9 +478,9 @@ public:
     {
         option = randomBool();
         color = new ComboGenerator(
-                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.517f),
-                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.088f),
-                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.037f)
+                new SinGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.517f),
+                new SinGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.088f),
+                new SinGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.037f)
         );
     }
 
@@ -549,9 +558,9 @@ public:
     {
         option = randomBool();
         color = new ComboGenerator(
-                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.517f),
-                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.088f),
-                new SimpleGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.037f)
+                new SinGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.517f),
+                new SinGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.088f),
+                new SinGenerator(0.1f, 0.7f, 2 * M_PIf32 / 1.037f)
         );
     }
 
@@ -941,8 +950,8 @@ class Pebbles : public AbstractPattern
 public:
 
     Pebbles() : AbstractPattern("Pebbles"), vol_mean(0.1), last_cx(0.5),
-                r(new SimpleGenerator(0.0, 1.0, 1.6 / 3)),
-                g(new SimpleGenerator(0.0, 1.0, 4.1 / 3))
+                r(new SinGenerator(0.0, 1.0, 1.6 / 3)),
+                g(new SinGenerator(0.0, 1.0, 4.1 / 3))
     {
         option = randomBool();
     }
@@ -1244,3 +1253,65 @@ Pattern *createEqualizer() { return new Equalizer();}
 Pattern *createEKG() { return new EKG2();}
 Pattern *createPebbles() { return new Pebbles();}
 Pattern *createSwayBeat() { return new SwayBeat();}
+
+
+bool close(float a, float b)
+{
+    return fabsf(a-b) < 0.002;
+}
+bool close(Color a, Color b)
+{
+    return close(a.r(),b.r()) && close(a.g(),b.g()) && close(a.b(),b.b());
+}
+
+void hsltest()
+{
+    // https://en.wikipedia.org/wiki/HSL_and_HSV
+    Color White_rgb(255u,255,255);
+    Color Red_rgb(255u,0,0);
+    Color Lime_rgb(0u,255,0);
+    Color Blue_rgb(0u,0,255);
+    Color Yellow_rgb(255u,255,0);
+    Color Cyan_rgb(0u,255,255);
+    Color Magenta_rgb(255u,0,255);
+    Color Silver_rgb(191u,191,191);
+    Color Gray_rgb(128u,128,128);
+    Color Maroon_rgb(128u,0,0);
+    Color Olive_rgb(128u,128,0);
+    Color Green_rgb(0u,128,0);
+    Color Purple_rgb(128u,0,128);
+    Color Teal_rgb(0u,128,128);
+    Color Navy_rgb(0u,0,128);
+
+    Color White_hsl   = Color::hsl(0/360.0f,0,1.00);
+    Color Red_hsl     = Color::hsl(0/360.0f,1.00,0.50);
+    Color Lime_hsl    = Color::hsl(120/360.0f,1.00,0.50);
+    Color Blue_hsl    = Color::hsl(240/360.0f,1.00,0.50);
+    Color Yellow_hsl  = Color::hsl(60/360.0f,1.00,0.50);
+    Color Cyan_hsl    = Color::hsl(180/360.0f,1.00,0.50);
+    Color Magenta_hsl = Color::hsl(300/360.0f,1.00,0.50);
+    Color Silver_hsl  = Color::hsl(0/360.0f,0,0.75);
+    Color Gray_hsl    = Color::hsl(0/360.0f,0,0.50);
+    Color Maroon_hsl  = Color::hsl(0/360.0f,1.00,0.25);
+    Color Olive_hsl   = Color::hsl(60/360.0f,1.00,0.25);
+    Color Green_hsl   = Color::hsl(120/360.0f,1.00,0.25);
+    Color Purple_hsl  = Color::hsl(300/360.0f,1.00,0.25);
+    Color Teal_hsl    = Color::hsl(180/360.0f,1.00,0.25);
+    Color Navy_hsl    = Color::hsl(240/360.0f,1.00,0.25);
+
+    assert(close(White_rgb,White_hsl));
+    assert(close(Red_rgb,Red_hsl));
+    assert(close(Lime_rgb,Lime_hsl));
+    assert(close(Blue_rgb,Blue_hsl));
+    assert(close(Yellow_rgb,Yellow_hsl));
+    assert(close(Cyan_rgb,Cyan_hsl));
+    assert(close(Magenta_rgb,Magenta_hsl));
+    assert(close(Silver_rgb,Silver_hsl));
+    assert(close(Gray_rgb,Gray_hsl));
+    assert(close(Maroon_rgb,Maroon_hsl));
+    assert(close(Olive_rgb,Olive_hsl));
+    assert(close(Green_rgb,Green_hsl));
+    assert(close(Purple_rgb,Purple_hsl));
+    assert(close(Teal_rgb,Teal_hsl));
+    assert(close(Navy_rgb,Navy_hsl));
+}
