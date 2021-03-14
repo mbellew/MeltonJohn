@@ -228,7 +228,7 @@ public:
 
         serial.write((uint8_t *)data, count*3);
 
-        for (size_t i=size ; i<128 ; i++)
+        for (size_t i=count*3 ; i<128 ; i++)
             serial.write((uint8_t)0);
     }
 
@@ -359,12 +359,19 @@ void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledDat
 
 
 class SoundFFT sound;
+#if OUTPUT_MYDMX
+class RenderMyDMX outputDmx(Serial1);
+class RenderMyDMX &output=outputDmx;
+#endif
 #if OUTPUT_FASTLED_DMX
 class RenderFastLEDDMX outputFastLED;
+class RenderFastLEDDMX &output=outputFastLED;
 #endif
 #if OUTPUT_FASTLED_NEOPIXEL
 class RenderFastLEDNeoPixel raw;
 class RenderReorder outputFastLED(raw);
+class RenderReorder &output=outputFastLED;
+
 #endif
 class RenderDebug outputDebug;
 Renderer *renderPattern = createRenderer();
@@ -379,7 +386,7 @@ void testPattern()
     {
         rgbBuffer[(i-1)%IMAGE_SIZE] = CRGB(0,0,0);
         rgbBuffer[(i)%IMAGE_SIZE] = CRGB(255,255,255);
-        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
+        output.write(rgbBuffer,IMAGE_SIZE);
         i++;
         delay(200);
     }
@@ -410,7 +417,7 @@ void testPattern()
             }
             i++;
         }
-        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
+        output.write(rgbBuffer,IMAGE_SIZE);
         delay(3000);
 
         for (size_t i=0; i < IMAGE_SIZE; i++)
@@ -419,7 +426,7 @@ void testPattern()
             rgbBuffer[i].g = 0x00;
             rgbBuffer[i].b = 0x00;
         }
-        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
+        output.write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
@@ -427,7 +434,7 @@ void testPattern()
             rgbBuffer[i].g = C;
             rgbBuffer[i].b = 0x00;
         }
-        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
+        output.write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
@@ -435,7 +442,7 @@ void testPattern()
             rgbBuffer[i].g = 0x00;
             rgbBuffer[i].b = C;
         }
-        outputFastLED.write(rgbBuffer,IMAGE_SIZE);
+        output.write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
     }
 }
@@ -459,7 +466,7 @@ void setup_()
 
     sound.begin();
 
-    outputFastLED.begin();
+    output.begin();
 
     if (1)
         testPattern();
@@ -519,8 +526,8 @@ void loop_()
     mapToDisplay(loop_brightness, 0.0, 2.5, f32values, rgbValues, IMAGE_SIZE*3);
  
     // LOG_println("outputFastLED.write");
-#if OUTPUT_FASTLED_DMX || OUTPUT_FASTLED_NEOPIXEL
-    outputFastLED.write(rgbValues, IMAGE_SIZE);
+#if OUTPUT_FASTLED_DMX || OUTPUT_FASTLED_NEOPIXEL || OUTPUT_MYDMX
+    output.write(rgbValues, IMAGE_SIZE);
 #endif
 #if OUTPUT_DEBUG
     outputDebug.write(rgbValues, IMAGE_SIZE);

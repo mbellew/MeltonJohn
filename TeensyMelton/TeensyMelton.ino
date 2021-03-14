@@ -22,11 +22,58 @@ void loop()
 
 
 
-#if 1
+#if 0
 
+#include "DMXSerial.h"
+#include "DmxSimple.h"
 #include "FastLED.h"
 #define IMAGE_SIZE 50
 #define NEOPIXEL_PIN 2
+#define DMX_TX_PIN 1
+
+
+
+class RenderMyDMX
+{
+//    // extra buffer for full dmx frame
+//    static uint8_t tx_buffer[512*3];
+
+    HardwareSerial &serial;
+
+public:
+    RenderMyDMX(HardwareSerial &serial_) :
+            serial(serial_)
+    {
+#ifdef TEENSY40
+        //        serial.addStorageForWrite(RenderDMX::tx_buffer, sizeof(RenderDMX::tx_buffer));
+#endif
+    }
+
+    void begin()
+    {
+    }
+
+    void write(CRGB data[], size_t count)
+    {
+        serial.flush();
+        delayMicroseconds(44);
+        serial.begin(100000, SERIAL_8E1);  // write out a long 0
+        serial.write(0);
+        serial.flush();
+        delayMicroseconds(44);
+        serial.begin(250000, SERIAL_8N2);
+        serial.write((uint8_t)0);
+
+        serial.write((uint8_t *)data, count*3);
+
+        for (size_t i=count*3 ; i<512 ; i++)
+            serial.write((uint8_t)0);
+    }
+
+    void loop()
+    {}
+};
+
 
 class RenderFastLED
 {
@@ -35,7 +82,8 @@ class RenderFastLED
 public:
     void begin() 
     {
-      FastLED.addLeds<WS2812B, NEOPIXEL_PIN, GRB>(leds, IMAGE_SIZE);
+      //FastLED.addLeds<WS2812B, NEOPIXEL_PIN, GRB>(leds, IMAGE_SIZE);
+      FastLED.addLeds<DMXSIMPLE,DMX_TX_PIN,RGB>(leds, IMAGE_SIZE);
     }
 
     void write(CRGB data[], size_t count)
@@ -53,7 +101,7 @@ public:
 };
 
 RenderFastLED render;
-
+//RenderMyDMX render(Serial1);
 
 void setup_2()
 {
