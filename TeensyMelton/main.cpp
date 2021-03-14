@@ -197,18 +197,12 @@ public:
 #if OUTPUT_MYDMX
 class RenderMyDMX : public _DMXWriter
 {
-    // extra buffer for full dmx frame
-    static uint8_t tx_buffer[512*3];
-
     HardwareSerial &serial;
 
 public:
     RenderMyDMX(HardwareSerial &serial_) :
             serial(serial_)
     {
-#ifdef TEENSY40
-//        serial.addStorageForWrite(RenderDMX::tx_buffer, sizeof(RenderDMX::tx_buffer));
-#endif
     }
 
     void begin() override
@@ -228,7 +222,7 @@ public:
 
         serial.write((uint8_t *)data, count*3);
 
-        for (size_t i=count*3 ; i<128 ; i++)
+        for (size_t i=count*3 ; i<IMAGE_SIZE*3 ; i++)
             serial.write((uint8_t)0);
     }
 
@@ -468,8 +462,7 @@ void setup_()
 
     output.begin();
 
-    if (1)
-        testPattern();
+    if (0) testPattern();
 
     LOG_println("exit setup()");
 };
@@ -535,7 +528,7 @@ void loop_()
 
 #if USE_I2S
       int volPot = analogRead(A1);
-      loop_brightness += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
+      loop_brightness = 0.5;// += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
       // LOG_print(volPot);
 #endif
 
