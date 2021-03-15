@@ -7,14 +7,12 @@
 #include <SPI.h>
 #include <SD.h>
 //#include <SerialFlash.h>
-#include <OctoWS2811.h>
-#include <DmxSimple.h>
-//#include <DMXSerial.h>
+#if OUTPUT_FASTLED_DMX
+#include "DmxSimple.h"
+#endif
 #include <FastLED.h>
 
 #define DebugSerial Serial
-
-
 
 #ifdef SERIAL_PORT_HARDWARE_OPEN6
   #define TEENSY40
@@ -49,8 +47,8 @@ typedef struct realcolor
 // 8 bit colors
 #define color(_r, _g, _b) (((color_t)(_r))<<16 | ((color_t)(_g)) << 8 | (color_t)(_b))
 
-#define max(a, b) ((a)>(b)?(a):(b))
-#define min(a, b) ((a)<(b)?(a):(b)) 
+//#define max(a, b) ((a)>(b)?(a):(b))
+//#define min(a, b) ((a)<(b)?(a):(b))
 
 
 void LOG_format(int n)
@@ -161,6 +159,7 @@ public:
 
 
 #if OUTPUT_OCTO
+#include <OctoWS2811.h>
 DMAMEM int octo_displayMemory[IMAGE_SIZE * 6];
 int octo_drawingMemory[IMAGE_SIZE * 6];
 OctoWS2811 octo_leds(IMAGE_SIZE, octo_displayMemory, octo_drawingMemory, WS2811_GRB | WS2811_800kHz);
@@ -224,6 +223,35 @@ public:
 
         for (size_t i=count*3 ; i<IMAGE_SIZE*3 ; i++)
             serial.write((uint8_t)0);
+    }
+
+    void loop() override
+    {}
+};
+#endif
+
+
+#if OUTPUT_TEENSYDMX
+#include <TeensyDMX.h>
+class RenderTeensyDMX : public _DMXWriter
+{
+    ::qindesign::teensydmx::Sender dmxTx;
+
+public:
+    RenderTeensyDMX(HardwareSerial &serial_) : dmxTx(serial_)
+    {
+    }
+
+    void begin() override
+    {
+        dmxTx.begin();
+        dmxTx.setPacketSize(IMAGE_SIZE*3);
+        dmxTx.resume();
+    }
+
+    void write(CRGB data[], size_t count) override
+    {
+        dmxTx.set(0,(uint8_t*)data,count*3);
     }
 
     void loop() override
@@ -357,6 +385,10 @@ class SoundFFT sound;
 class RenderMyDMX outputDmx(Serial1);
 class RenderMyDMX &output=outputDmx;
 #endif
+#if OUTPUT_TEENSYDMX
+class RenderTeensyDMX outputTeensyDmx(Serial1);
+class RenderTeensyDMX &output=outputTeensyDmx;
+#endif
 #if OUTPUT_FASTLED_DMX
 class RenderFastLEDDMX outputFastLED;
 class RenderFastLEDDMX &output=outputFastLED;
@@ -365,7 +397,6 @@ class RenderFastLEDDMX &output=outputFastLED;
 class RenderFastLEDNeoPixel raw;
 class RenderReorder outputFastLED(raw);
 class RenderReorder &output=outputFastLED;
-
 #endif
 class RenderDebug outputDebug;
 Renderer *renderPattern = createRenderer();
@@ -519,17 +550,13 @@ void loop_()
     mapToDisplay(loop_brightness, 0.0, 2.5, f32values, rgbValues, IMAGE_SIZE*3);
  
     // LOG_println("outputFastLED.write");
-#if OUTPUT_FASTLED_DMX || OUTPUT_FASTLED_NEOPIXEL || OUTPUT_MYDMX
     output.write(rgbValues, IMAGE_SIZE);
-#endif
 #if OUTPUT_DEBUG
     outputDebug.write(rgbValues, IMAGE_SIZE);
 #endif
 
 #if USE_I2S
-      int volPot = analogRead(A1);
-      loop_brightness = 0.5;// += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
-      // LOG_print(volPot);
+//      int volPot = analogRead(A1);
+//      loop_brightness = 0.5;// += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
 #endif
-
 }
