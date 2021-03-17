@@ -1,3 +1,6 @@
+#include "config.h"
+#ifdef PLATFORM_TEENSY
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -394,9 +397,10 @@ class RenderFastLEDDMX outputFastLED;
 class RenderFastLEDDMX &output=outputFastLED;
 #endif
 #if OUTPUT_FASTLED_NEOPIXEL
-class RenderFastLEDNeoPixel raw;
-class RenderReorder outputFastLED(raw);
-class RenderReorder &output=outputFastLED;
+class RenderFastLEDNeoPixel outputFastLED;
+class RenderFastLEDNeoPixel &output=outputFastLED;
+class RenderReorder outputReorder(outputFastLED);
+//class RenderReorder &output(outputReorder);
 #endif
 class RenderDebug outputDebug;
 Renderer *renderPattern = createRenderer();
@@ -475,11 +479,22 @@ void testPattern()
 void setup_()
 {
 #if USE_ADC
-    // Power for microphone
-    pinMode(ADC_MIC_GND_PIN, OUTPUT);
+    // on octo shield this give us
+    // 1 23 22 19 18
+    // G  V  G AD  V
+    pinMode(1, OUTPUT);
     digitalWrite(ADC_MIC_GND_PIN, LOW);
+
     pinMode(ADC_MIC_VCC_PIN, OUTPUT);
     digitalWrite(ADC_MIC_VCC_PIN, HIGH);
+
+    pinMode(ADC_MIC_GND_PIN, OUTPUT);
+    digitalWrite(ADC_MIC_GND_PIN, LOW);
+
+    // 19 is controlled by AudioInputAnalog
+
+    pinMode(18, OUTPUT);
+    digitalWrite(18, HIGH);
 #endif
 #if USE_I2S
     // analog volume pot
@@ -502,7 +517,7 @@ void setup_()
 
 void loop_fft()
 {
-    Spectrum spectrum;
+    static Spectrum spectrum;
 
     //if (fft.available())
     if (sound.next(spectrum))
@@ -526,12 +541,13 @@ void loop_fft()
 }
 
 
-unsigned long int loop_frame = 0;
-float loop_brightness = 0.5f;
 
 void loop_()
 {
-    Spectrum spectrum;
+    static unsigned long int loop_frame = 0;
+    static float loop_brightness = 1.0f;
+    static Spectrum spectrum;
+
     if (!sound.next(spectrum))
       return;
 
@@ -560,3 +576,6 @@ void loop_()
 //      loop_brightness = 0.5;// += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
 #endif
 }
+
+
+#endif PLATFORM_TEENSY
