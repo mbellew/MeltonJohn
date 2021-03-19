@@ -35,12 +35,19 @@
 #define PIN_DATA 34
 #define GAIN_FACTOR 3
 
-uint16_t TFT_COLOR(Color c)
+inline uint16_t TFT_COLOR(Color c)
 {
     return ((((uint16_t)(32*c.r()))&0x1f) << 11) |
            ((((uint16_t)(64*c.g()))&0x3f) << 5) |
            ((((uint16_t)(32*c.b()))&0x3f) << 0);
 }
+inline uint16_t TFT_CRGB(CRGB c)
+{
+    return ((c.r>>3) << 11) |
+           ((c.g>>2) << 5) |
+           ((c.g>>3) << 0);
+}
+
 
 // 4 bit colors
 #define v(i)((uint8_t)(i==0?0:i*16-1))
@@ -291,6 +298,24 @@ public:
 };
 
 
+class RenderLCD : public _DMXWriter
+{
+public:
+    void begin() override {}
+    void loop() override{}
+
+    void write(CRGB data[], size_t cont) override
+    {
+        size_t width = 360/IMAGE_SIZE;
+        for (int i=0 ; i<IMAGE_SIZE ; i++)
+        {
+            uint16_t color = TFT_CRGB(data[i]);
+            M5.Lcd.fillRect(0,i*width,240,width,color);
+        }
+    }
+};
+
+
 void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledData[], CRGB rgbData[], size_t size)
 {
     if (vibrance != 0.0)
@@ -334,13 +359,16 @@ class RenderFastLEDDMX &output=outputFastLED;
 #if OUTPUT_FASTLED_NEOPIXEL
 class RenderFastLEDNeoPixel outputFastLED;
 class RenderFastLEDNeoPixel &output=outputFastLED;
-class RenderReorder outputReorder(outputFastLED);
+//class RenderReorder outputReorder(outputFastLED);
 //class RenderReorder &output(outputReorder);
+#endif
+#if OUTPUT_M5LCD
+class RenderLCD outputLCD;
 #endif
 class RenderDebug outputDebug;
 Renderer *renderPattern = createRenderer();
 
-/*
+
 void testPattern()
 {
     uint8_t C = 0x40;
@@ -411,47 +439,34 @@ void testPattern()
         delay(1000);
     }
 }
- */
+
 
 void setup_()
 {
+    if (NEOPIXEL_PIN != G36)
+    {
+        pinMode(G36, INPUT);
+        digitalWrite(G36, LOW);
+    }
+    if (NEOPIXEL_PIN != G0)
+    {
+        pinMode(G0, INPUT);
+        digitalWrite(G0, LOW);
+    }
+    if (NEOPIXEL_PIN != G26)
+    {
+        pinMode(G26, INPUT);
+        digitalWrite(G26, LOW);
+    }
     M5.begin();
     for (int i=0;i<100 && !DebugSerial;i++) delay(10);
 
-      // Lcd display
-//      M5.Lcd.fillScreen(TFT_WHITE);
-//      delay(500);
-//      M5.Lcd.fillScreen(TFT_RED);
-//      delay(500);
-//      M5.Lcd.fillScreen(TFT_GREEN);
-//      delay(500);
-//      M5.Lcd.fillScreen(TFT_BLUE);
-//      delay(500);
-      M5.Lcd.fillScreen(TFT_BLACK);
-      delay(500);
-
-      // text print
-      M5.Lcd.fillScreen(TFT_BLACK);
-      M5.Lcd.setCursor(0, 10);
-      M5.Lcd.setTextColor(TFT_WHITE);
-      M5.Lcd.setTextSize(1);
-      M5.Lcd.printf("Display Test!");
-
-      // draw graphic
-      delay(1000);
-      M5.Lcd.drawRect(15, 55, 50, 50, TFT_BLUE);
-      delay(1000);
-      M5.Lcd.fillRect(15, 55, 50, 50, TFT_BLUE);
-      delay(1000);
-      M5.Lcd.drawCircle(40, 80, 30, TFT_RED);
-      delay(1000);
-      M5.Lcd.fillCircle(40, 80, 30, TFT_RED);
-      delay(1000);
+    M5.Lcd.fillScreen(TFT_BLACK);
 
     sound.begin();
 
-//    output.begin();
-//    if (0) testPattern();
+    output.begin();
+    if (0) testPattern();
 
     LOG_println("exit setup()");
 };
@@ -516,7 +531,12 @@ void loop_()
     mapToDisplay(loop_brightness, 0.0, 2.5, f32values, rgbValues, IMAGE_SIZE*3);
  
     // LOG_println("outputFastLED.write");
-//    output.write(rgbValues, IMAGE_SIZE);
+    output.write(rgbValues, IMAGE_SIZE);
+
+#if OUTPUT_M5LCD
+    outputLCD.write(rgbValues, IMAGE_SIZE);
+#endif
+
 #if OUTPUT_DEBUG
     outputDebug.write(rgbValues, IMAGE_SIZE);
 #endif

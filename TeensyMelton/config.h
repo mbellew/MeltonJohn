@@ -5,15 +5,19 @@
 #ifndef MELTONJOHN_CONFIG_H
 #define MELTONJOHN_CONFIG_H
 
-
-#define MELTONJOHN 1
-//#define BICYCLEPOLE 1
+// APPLICATION -- pick one
+//#define MELTONJOHN 1
+#define BICYCLEPOLE 1
 //#define LIGHTBUCKET 1
 
+// PLATFORM -- pick one
 //#define PLATFORM_TEENSY 1
 #define PLATFORM_M5STACK 1
 
-#define OUTPUT_DEBUG 1
+
+
+
+#define OUTPUT_DEBUG 0
 #define OUTPUT_FASTLED_NEOPIXEL 0
 #define OUTPUT_FASTLED_DMX 0
 #define OUTPUT_OCTO 0
@@ -44,18 +48,23 @@
     #define USE_I2S 1
 #endif
 
+
 /** BicyclePole uses M5StickC ESP32-PICO Mini **/
 #ifdef BICYCLEPOLE
     #define IMAGE_SIZE 50
 
     // OUTPUT LIGHT
     #undef OUTPUT_FASTLED_NEOPIXEL
-    #define OUTPUT_FASTLED_NEOPIXEL 0
+    #define OUTPUT_FASTLED_NEOPIXEL 1
 
     #undef OUTPUT_M5LCD
     #define OUTPUT_M5LCD 1
 
+#ifdef PLATFORM_M5STACK
+    #define NEOPIXEL_PIN G0
+#else
     #define NEOPIXEL_PIN 2
+#endif
 
     // INPUT SOUND
     #undef USE_ADC
@@ -66,7 +75,7 @@
 #endif
 
 
-/** LightBucket uses Teensy 3.2 with aan analog microphone **/
+/** LightBucket uses Teensy 3.2 with an analog microphone **/
 #ifdef LIGHTBUCKET
     #define IMAGE_SIZE 50
 

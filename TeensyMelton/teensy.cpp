@@ -578,4 +578,4 @@ void loop_()
 }
 
 
-#endif PLATFORM_TEENSY
+#endif // PLATFORM_TEENSY
