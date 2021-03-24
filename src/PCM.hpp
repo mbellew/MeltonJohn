@@ -78,6 +78,8 @@ public:
      * The returned data will be zero padded if more than FFT_LENGTH values are requested
      */
     void getSpectrum(float *data, CHANNEL channel, size_t samples, float smoothing);
+    // (don't update fft, use last fetched data)
+    void _getSpectrum(float *data, CHANNEL channel, size_t samples, float smoothing);
 
   	static Test* test();
 
@@ -93,7 +95,7 @@ private:
     // normalize to range [-1.0,1.0]
     float pcmL[maxsamples];
     float pcmR[maxsamples];
-    int start;
+    size_t start;
     size_t newsamples;
 
     // raw FFT data

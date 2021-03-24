@@ -1,3 +1,5 @@
+#include "config.h"
+#ifndef PLATFORM_TEENSY
 /*
 Fast Fourier/Cosine/Sine Transform
     dimension   :one
@@ -3311,4 +3313,4 @@ void dstsub(int n, float *a, int nc, float *c)
     }
     a[m] *= c[0];
 }
-
+#endif

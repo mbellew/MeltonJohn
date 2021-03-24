@@ -150,14 +150,7 @@ public:
             currentPattern->setup(context);
 
             // TODO call back for pattern change
-#if DESKTOP
-            fprintf(stdout, "#%s\n", currentPattern->name());
-//        if (device && device != stdout)
-//            fprintf(device, "#%s\n", currentPattern->name());
-#else
-            Serial.println(currentPattern->name());
-            Serial.flush();
-#endif
+            _println(currentPattern->name());
             preset_start_time = current_time;
         }
         vol_old = beatDetect->vol;

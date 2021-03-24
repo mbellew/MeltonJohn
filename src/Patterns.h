@@ -64,6 +64,8 @@ inline float MIN(float a, float b, float c)
     return MIN(a, MIN(b, c));
 }
 
+#undef constrain
+
 inline float constrain(float x, float mn, float mx)
 {
     return x < mn ? mn : x > mx ? mx : x;
@@ -137,7 +139,7 @@ public:
         return {in[0], in[1], in[2], in[3]};
     }
 
-    explicit Color(u_int32_t rgb) :
+    explicit Color(unsigned int rgb) :
             rgba { ((rgb >> 16) & 0xff) / 255.0f, ((rgb >>  8) & 0xff) / 255.0f, ((rgb >>  0) & 0xff) / 255.0f, 1.0 }
     {
     }

@@ -1,4 +1,4 @@
-#include "config.h"
+#include "TeensyMelton.h"
 #ifdef PLATFORM_TEENSY
 
 #include <math.h>
@@ -139,11 +139,11 @@ struct SoundFFT
 
         if (1 == 1)
         {
-            LOG_print("ret   ");
-            LOG_format((int) (ret.bass * 1000.0));
-            LOG_format((int) (ret.mid * 1000.0));
-            LOG_format((int) (ret.treb * 1000.0));
-            LOG_println();
+            _print("ret   ");
+            _format((int) (ret.bass * 1000.0));
+            _format((int) (ret.mid * 1000.0));
+            _format((int) (ret.treb * 1000.0));
+            _println();
         }
         return true;
     }
@@ -151,15 +151,6 @@ struct SoundFFT
 
 
 /** MAIN **/
-
-class _DMXWriter
-{
-public:
-    virtual void begin() = 0;
-    virtual void write(CRGB data[], size_t count) = 0;
-    virtual void loop() = 0;
-};
-
 
 #if OUTPUT_OCTO
 #include <OctoWS2811.h>
@@ -196,44 +187,6 @@ public:
 #endif
 
 
-#if OUTPUT_MYDMX
-class RenderMyDMX : public _DMXWriter
-{
-    HardwareSerial &serial;
-
-public:
-    RenderMyDMX(HardwareSerial &serial_) :
-            serial(serial_)
-    {
-    }
-
-    void begin() override
-    {
-    }
-
-    void write(CRGB data[], size_t count) override
-    {
-        serial.flush();
-        delayMicroseconds(44);
-        serial.begin(100000, SERIAL_8E1);  // write out a long 0
-        serial.write(0);
-        serial.flush();
-        delayMicroseconds(44);
-        serial.begin(250000, SERIAL_8N2);
-        serial.write((uint8_t)0);
-
-        serial.write((uint8_t *)data, count*3);
-
-        for (size_t i=count*3 ; i<IMAGE_SIZE*3 ; i++)
-            serial.write((uint8_t)0);
-    }
-
-    void loop() override
-    {}
-};
-#endif
-
-
 #if OUTPUT_TEENSYDMX
 #include <TeensyDMX.h>
 class RenderTeensyDMX : public _DMXWriter
@@ -263,73 +216,11 @@ public:
 #endif
 
 
-class RenderDebug : public _DMXWriter
+class RenderReorder : public OutputLED
 {
+  OutputLED &delegate;
 public:
-    void begin()
-    {
-    }
-
-    void write(CRGB rgb[], size_t count)
-    {
-        for (size_t i = 0; i < count; i++)
-        {
-            CRGB c = rgb[i];
-            unsigned long ul = ((unsigned long)c.r << 16) + ((unsigned long)c.g << 8) + (unsigned long)c.b;
-            ul |= 0x80000000;
-            DebugSerial.print(ul, 16);
-            DebugSerial.print(", ");
-        }
-        DebugSerial.println();
-    }
-
-    void loop(){}
-};
-
-
-
-class _RenderFastLED : public _DMXWriter
-{
-protected:
-    CRGB leds[IMAGE_SIZE];
-
-public:
-    void write(CRGB data[], size_t count) override
-    {
-        memcpy((uint8_t *)leds, (uint8_t *)data, count*sizeof(CRGB));
-        FastLED.show();
-    }
-
-    void loop() override
-    {}
-};
-#if OUTPUT_FASTLED_DMX
-class RenderFastLEDDMX : public _RenderFastLED
-{
-public:
-    void begin() override
-    {
-        FastLED.addLeds<DMXSIMPLE,DMX_TX_PIN,RGB>(leds, IMAGE_SIZE);
-    }
-};
-#endif
-#if OUTPUT_FASTLED_NEOPIXEL
-class RenderFastLEDNeoPixel : public _RenderFastLED
-{
-public:
-    void begin() override
-    {
-        FastLED.addLeds<WS2812B, NEOPIXEL_PIN, GRB>(leds, IMAGE_SIZE);
-    }
-};
-#endif
-
-
-class RenderReorder : public _DMXWriter
-{
-  _DMXWriter &delegate;
-public:
-  RenderReorder(_DMXWriter &d) : delegate(d)
+  RenderReorder(OutputLED &d) : delegate(d)
   {
   }
 
@@ -343,7 +234,7 @@ public:
     delegate.loop();
   }
 
-  void write(CRGB data[], size_t count) override
+  void write(const CRGB data[], size_t count) override
   {
         CRGB to[count];
         for (size_t i=0 ; i<count/2 ; i++)
@@ -356,53 +247,11 @@ public:
 };
 
 
-void mapToDisplay(float maxBrightness, float vibrance, float gamma, float ledData[], CRGB rgbData[], size_t size)
-{
-    if (vibrance != 0.0)
-    {
-        for (size_t i=0 ; i<size ; i+=3)
-        {
-            float r = ledData[i], g = ledData[i+1], b = ledData[i+2];
-            float mx = (float)fmax(fmax(r,g),b);
-            float avg = (r + g + b) / 3.0f;
-            float adjust = (1-(mx - avg)) * 2 * -1 * vibrance;
-            //float adjust = -1 * vibrance;
-            // r += (mx - r) * adjust;
-            ledData[i]   = r * (1 - adjust) + adjust * mx;
-            ledData[i+1] = g * (1 - adjust) + adjust * mx;
-            ledData[i+2] = b * (1 - adjust) + adjust * mx;
-        }
-    }
-    size_t count = size/3;
-    for (size_t i=0 ; i<count ; i++)
-    {
-        rgbData[i].r = (int)round(pow(ledData[i*3+0], gamma) * maxBrightness * 255);
-        rgbData[i].g = (int)round(pow(ledData[i*3+1], gamma) * maxBrightness * 255);
-        rgbData[i].b = (int)round(pow(ledData[i*3+2], gamma) * maxBrightness * 255);
-    }
-}
-
-
 class SoundFFT sound;
-#if OUTPUT_MYDMX
-class RenderMyDMX outputDmx(Serial1);
-class RenderMyDMX &output=outputDmx;
-#endif
 #if OUTPUT_TEENSYDMX
 class RenderTeensyDMX outputTeensyDmx(Serial1);
 class RenderTeensyDMX &output=outputTeensyDmx;
 #endif
-#if OUTPUT_FASTLED_DMX
-class RenderFastLEDDMX outputFastLED;
-class RenderFastLEDDMX &output=outputFastLED;
-#endif
-#if OUTPUT_FASTLED_NEOPIXEL
-class RenderFastLEDNeoPixel outputFastLED;
-class RenderFastLEDNeoPixel &output=outputFastLED;
-class RenderReorder outputReorder(outputFastLED);
-//class RenderReorder &output(outputReorder);
-#endif
-class RenderDebug outputDebug;
 Renderer *renderPattern = createRenderer();
 
 void testPattern()
@@ -415,7 +264,7 @@ void testPattern()
     {
         rgbBuffer[(i-1)%IMAGE_SIZE] = CRGB(0,0,0);
         rgbBuffer[(i)%IMAGE_SIZE] = CRGB(255,255,255);
-        output.write(rgbBuffer,IMAGE_SIZE);
+        output->write(rgbBuffer,IMAGE_SIZE);
         i++;
         delay(200);
     }
@@ -446,7 +295,7 @@ void testPattern()
             }
             i++;
         }
-        output.write(rgbBuffer,IMAGE_SIZE);
+        output->write(rgbBuffer,IMAGE_SIZE);
         delay(3000);
 
         for (size_t i=0; i < IMAGE_SIZE; i++)
@@ -455,7 +304,7 @@ void testPattern()
             rgbBuffer[i].g = 0x00;
             rgbBuffer[i].b = 0x00;
         }
-        output.write(rgbBuffer,IMAGE_SIZE);
+        output->write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
@@ -463,7 +312,7 @@ void testPattern()
             rgbBuffer[i].g = C;
             rgbBuffer[i].b = 0x00;
         }
-        output.write(rgbBuffer,IMAGE_SIZE);
+        output->write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
         for (size_t i=0; i < IMAGE_SIZE; i++)
         {
@@ -471,12 +320,12 @@ void testPattern()
             rgbBuffer[i].g = 0x00;
             rgbBuffer[i].b = C;
         }
-        output.write(rgbBuffer,IMAGE_SIZE);
+        output->write(rgbBuffer,IMAGE_SIZE);
         delay(1000);
     }
 }
 
-void setup_()
+void setup_teensy()
 {
 #if USE_ADC
     // on octo shield this give us
@@ -506,11 +355,11 @@ void setup_()
 
     sound.begin();
 
-    output.begin();
+    output->begin();
 
     if (0) testPattern();
 
-    LOG_println("exit setup()");
+    _println("exit setup()");
 };
 
 
@@ -542,10 +391,9 @@ void loop_fft()
 
 
 
-void loop_()
+void loop_teensy()
 {
     static unsigned long int loop_frame = 0;
-    static float loop_brightness = 1.0f;
     static Spectrum spectrum;
 
     if (!sound.next(spectrum))
@@ -563,12 +411,12 @@ void loop_()
     renderPattern->renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
 
     // LOG_println("mapToDisplay");
-    mapToDisplay(loop_brightness, 0.0, 2.5, f32values, rgbValues, IMAGE_SIZE*3);
+    mapToDisplay(f32values, rgbValues, IMAGE_SIZE*3);
  
     // LOG_println("outputFastLED.write");
-    output.write(rgbValues, IMAGE_SIZE);
+    output->write(rgbValues, IMAGE_SIZE);
 #if OUTPUT_DEBUG
-    outputDebug.write(rgbValues, IMAGE_SIZE);
+    outputDebug->write(rgbValues, IMAGE_SIZE);
 #endif
 
 #if USE_I2S

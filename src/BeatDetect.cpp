@@ -1,3 +1,6 @@
+#include "config.h"
+
+#ifndef PLATFORM_TEENSY
 /**
  * projectM -- Milkdrop-esque visualisation SDK
  * Copyright (C)2003-2004 projectM Team
@@ -181,3 +184,4 @@ void BeatDetect::getBeatVals( float samplerate, unsigned fft_length, float *vdat
 }
 
 
+#endif

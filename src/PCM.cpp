@@ -1,3 +1,5 @@
+#include "config.h"
+#ifndef PLATFORM_TEENSY
 /**
  * projectM -- Milkdrop-esque visualisation SDK
  * Copyright (C)2003-2004 projectM Team
@@ -166,8 +168,8 @@ void PCM::addPCM16Data(const short* pcm_data, size_t samples)
     for (size_t i = 0; i < samples; ++i)
     {
         size_t j = (i + start) % maxsamples;
-        a = pcmL[j] = (pcm_data[i * 2 + 0] / 16384.0);
-        b = pcmR[j] = (pcm_data[i * 2 + 1] / 16384.0);
+        a = pcmL[j] = (pcm_data[i * 2 + 0] / 16384.0f);
+        b = pcmR[j] = (pcm_data[i * 2 + 1] / 16384.0f);
         sum += fabs(a) + fabs(b);
         max = fmax(fmax(max, a), b);
     }
@@ -302,7 +304,11 @@ void PCM::getSpectrum(float *data, CHANNEL channel, size_t samples, float smooth
 {
     assert(channel == 0 || channel == 1);
     _updateFFT();
+    _getSpectrum(data, channel, samples, smoothing);
+}
 
+void PCM::_getSpectrum(float *data, CHANNEL channel, size_t samples, float smoothing)
+{
     float *spectrum = channel == 0 ? spectrumL : spectrumR;
     if (smoothing == 0)
     {
@@ -398,3 +404,4 @@ void PCM::freePCM()
   w = NULL;
 }
 
+#endif

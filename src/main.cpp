@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
         }
         if (++framerate_count == 100)
         {
-            fprintf(stderr,"fps=%lf\n", 100.0 / (time-framerate_time));
+            //fprintf(stderr,"#fps=%lf\n", 100.0 / (time-framerate_time));
             framerate_count = 0;
             framerate_time = time;
         }

@@ -33,10 +33,11 @@ project(TeensyMelton)
 add_executable(TeensyMelton
         TeensyMelton/beat_data.cpp
         TeensyMelton/beat_data.h
-        TeensyMelton/main.cpp
         TeensyMelton/MultiLayerPatterns.cpp
+        TeensyMelton/m5.cpp
         TeensyMelton/Patterns.h
         TeensyMelton/Patterns.cpp
         TeensyMelton/Renderer.cpp
         TeensyMelton/Renderer.h
+        TeensyMelton/teensy.cpp
         TeensyMelton/config.h)
