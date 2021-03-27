@@ -217,11 +217,155 @@ public:
             }
             ypos += h;
         }
-        _println("");
     }
 };
 #endif
 
+
+struct RTCWrapper
+{
+    static float rtcTime;
+    static unsigned long millisAtTime;
+    static bool forceReset;
+
+    static void setup()
+    {
+        RTC_TimeTypeDef rtcTemp1, rtcNow;
+        M5.Rtc.GetTime(&rtcTemp1);
+        do
+        {
+            M5.Rtc.GetTime(&rtcNow);
+        } while (rtcTemp1.Seconds == rtcNow.Seconds);
+        millisAtTime = millis();
+        rtcTime = (rtcNow.Hours*60*60) + (rtcNow.Minutes*60) + rtcNow.Seconds;
+    }
+
+    static float time() // seconds since midnight
+    {
+        unsigned long currentMillis = millis();
+        unsigned long elapsed = currentMillis<millisAtTime ? currentMillis : currentMillis-millisAtTime;
+        return rtcTime + (elapsed/1000.0f);
+    }
+
+    // mostly noop, occassionally start polling the RTC say 1/minute
+    static void loop()
+    {
+        static bool polling = false;
+        static RTC_TimeTypeDef rtcPollingStart = {0};
+
+        if (polling)
+        {
+            RTC_TimeTypeDef rtcNow;
+            M5.Rtc.GetTime(&rtcNow);
+            if (rtcNow.Seconds != rtcPollingStart.Seconds)
+            {
+                 millisAtTime = millis();
+                 rtcTime = (rtcNow.Hours*60*60) + (rtcNow.Minutes*60) + rtcNow.Seconds;
+                 polling = false;
+                 forceReset = false;
+            }
+        }
+        else
+        {
+            unsigned long m = millis();
+            if (forceReset || m<millisAtTime || m-millisAtTime > 60*1000)
+            {
+                polling = true;
+                M5.Rtc.GetTime(&rtcPollingStart);
+            }
+        }
+    }
+
+    /* if we have interrupts hooked up in some useful way... no access to CLKOUT unfortunately
+    static void updateOnInterrupt()
+    {
+        RTC_TimeTypeDef rtcTemp;
+        M5.Rtc.GetTime(&rtcTemp);
+        unsigned long m = millis();
+        Serial.println(m);
+        float f = (rtcTemp.Hours*60*60) + (rtcTemp.Minutes*60) + rtcTemp.Seconds;
+        if (f != rtcTime)
+        {
+            rtcTime = f;
+            millisAtTime = m;
+            Serial.print("rtcTime:  "); Serial.println(f);
+            Serial.print("millis(): "); Serial.println(m);
+        }
+    }*/
+};
+
+float RTCWrapper::rtcTime=0;
+unsigned long RTCWrapper::millisAtTime=0;
+bool RTCWrapper::forceReset=false;
+
+
+
+struct TimeParser
+{
+  Stream &input;
+
+  TimeParser(Stream &s) : input(s)
+  {
+  }
+
+  void set_time(char *sz)
+  {
+    if (8 != strlen(sz))
+      return;
+    if (sz[2] != ':' || sz[5] != ':')
+      return;
+_println(sz);
+    sz[2] = 0;
+    sz[5] = 0;
+    RTC_TimeTypeDef TimeStruct;
+    TimeStruct.Hours   = atoi(sz+0);;
+    TimeStruct.Minutes = atoi(sz+3);
+    TimeStruct.Seconds = atoi(sz+6);
+    M5.Rtc.SetTime(&TimeStruct);
+    RTCWrapper::forceReset = true;
+  }
+
+  void loop()
+  {
+    static char serial_buffer[10];
+    static size_t serial_len=0;
+    static size_t serial_lastchar = '\n';
+
+    while (input.available())
+    {
+      uint8_t ch = input.read();
+      if (ch == '\n')
+      {
+        if (serial_len == 8)
+        {
+          serial_buffer[serial_len++] = 0;
+          set_time(serial_buffer);
+        }
+      }
+      else if (ch == ':')
+      {
+        if (serial_len==2 || serial_len==5)
+        {
+          serial_buffer[serial_len++] = ch;
+          serial_buffer[serial_len] = 0;
+        }
+        else ch = 0;
+      }
+      else if (ch >= '0' && ch <= '9')
+      {
+          if ((serial_len==0 && serial_lastchar=='\n') || (0<serial_len && serial_len<8))
+          {
+            serial_buffer[serial_len++] = ch;
+            serial_buffer[serial_len] = 0;
+          }
+          else ch = 0;
+      }
+      if (ch == '\n' || ch == 0)
+        serial_len = 0;
+      serial_lastchar = ch;
+    }
+  }
+};
 
 
 
@@ -315,17 +459,17 @@ extern void display_task(void *pv);
 
 void setup_m5()
 {
-    M5.begin();
-    //M5.Power.begin();
-
     // disable GPIO 25
+    pinMode(GPIO_NUM_25,INPUT);
     gpio_pulldown_dis(GPIO_NUM_25);
     gpio_pullup_dis(GPIO_NUM_25);
 
+    M5.begin();
+    
     if (NEOPIXEL_PIN != G36)
     {
         pinMode(G36, INPUT);
-        digitalWrite(G36, LOW);
+        digitalWrite(G36, HIGH);
     }
     if (NEOPIXEL_PIN != G0)
     {
@@ -338,6 +482,9 @@ void setup_m5()
         digitalWrite(G26, LOW);
     }
     for (int i=0;i<100 && !Serial;i++) delay(10);
+    pinMode(G36,INPUT);
+    digitalWrite(G36,HIGH);
+    Serial1.begin(2400, SERIAL_8N1, G36, -1, false);  // baud, config, rx, tx, invert
 
     M5.Lcd.fillScreen(TFT_BLACK);
 
@@ -345,16 +492,21 @@ void setup_m5()
     output->begin();
     if (0) testPattern();
 
+    RTCWrapper::setup();
     _println("exit setup()");
 
     xTaskCreate(display_task, "display", 8*1024, NULL, 1, NULL);
 };
 
+TimeParser timeParser(Serial1);
+
 
 void loop_m5()
 {
+    timeParser.loop();
+    RTCWrapper::loop();
     M5.update();
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
 }
 
 
