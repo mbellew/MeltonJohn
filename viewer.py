@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import pygame
+import queue
 import sys
 import threading
 import time
@@ -8,8 +9,10 @@ from pygame.locals import *
 # from OpenGL.GL import *
 # from OpenGL.GLU import *
 
-EVENT_TEXT=USEREVENT+1
+EVENT_TIMER=USEREVENT+1
+EVENT_TEXT=USEREVENT+2
 
+q = queue.Queue()
 
 def parse_line(text):
     ret = []
@@ -32,6 +35,7 @@ class App:
         self.dirty = True
         # self.mode = pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE
         self.mode = pygame.HWSURFACE | pygame.RESIZABLE
+        pygame.time.set_timer(EVENT_TIMER,10);
 
     def on_init(self):
         pygame.init()
@@ -39,6 +43,11 @@ class App:
         self._running = True
  
     def on_event(self, event):
+        while not q.empty():
+            text_event = q.get(False)
+            pygame.event.clear(EVENT_TEXT)
+            pygame.event.post(text_event)
+
         if event.type == pygame.QUIT:
             self._running = False
         elif event.type==pygame.VIDEORESIZE:
@@ -84,6 +93,7 @@ class App:
 #        stdinThread.start()
 
         f = sys.stdin
+        # f = open("fifo");
         while( self._running ):
             for event in pygame.event.get():
                 self.on_event(event)
@@ -92,8 +102,7 @@ class App:
             line = f.readline().strip()
             if line:
                 text_event = pygame.event.Event(EVENT_TEXT, message=line)
-                pygame.event.clear(EVENT_TEXT)
-                pygame.event.post(text_event)
+                q.put(text_event)
             else:
                 time.sleep(1.0/60.0)
         self.on_cleanup()
@@ -107,8 +116,7 @@ class StdinThread(threading.Thread):
                 line = line.strip()
                 if line:
                     text_event = pygame.event.Event(EVENT_TEXT, message=line)
-                    pygame.event.clear(EVENT_TEXT)
-                    pygame.event.post(text_event)
+                    q.put(text_event)
 
 
 if __name__ == "__main__" :
