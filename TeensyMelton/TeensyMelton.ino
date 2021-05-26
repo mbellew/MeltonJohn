@@ -145,12 +145,13 @@ OutputLED *output = &_outputAdafruit;
 class _RenderFastLED : public OutputLED
 {
 protected:
-    CRGB leds[IMAGE_SIZE];
+    CRGB *leds;
 
 public:
     void write(const CRGB data[], size_t count) override
     {
-        memcpy(leds, data, count*sizeof(CRGB));
+        //assert(IMAGE_SIZE <= 60);
+        memcpy(leds, data, ::min(count,(size_t)IMAGE_SIZE)*sizeof(CRGB));
         FastLED.show();
     }
 
@@ -158,12 +159,14 @@ public:
     {}
 };
 
+
 #if OUTPUT_FASTLED_DMX
 class RenderFastLEDDMX : public _RenderFastLED
 {
 public:
     void begin() override
     {
+        leds = malloc(sizeof(CRGB) * IMAGE_SIZE);
         FastLED.addLeds<DMXSIMPLE,DMX_TX_PIN,RGB>(leds, IMAGE_SIZE);
     }
 };
@@ -171,12 +174,14 @@ RenderFastLEDDMX _outputFastLED;
 OutputLED *output = &_outputFastLED;
 #endif
 
+
 #if OUTPUT_FASTLED_NEOPIXEL
 class RenderFastLEDNeoPixel : public _RenderFastLED
 {
 public:
     void begin() override
     {
+        leds = malloc(sizeof(CRGB) * IMAGE_SIZE);
         FastLED.addLeds<WS2812B, NEOPIXEL_PIN, GRB>(leds, IMAGE_SIZE);
     }
 };
@@ -184,6 +189,22 @@ RenderFastLEDNeoPixel _outputFastLED;
 OutputLED *output = &_outputFastLED;
 #endif
 
+
+#if OUTPUT_FASTLED_LUMINI
+class RenderFastLEDLumini : public _RenderFastLED
+{
+public:
+    void begin() override
+    {
+        leds = malloc(sizeof(CRGB) * IMAGE_SIZE);
+        LEDS.addLeds<APA102, PIN_SPI_MOSI, PIN_SPI_SCK, BGR, DATA_RATE_MHZ(1)>(leds, IMAGE_SIZE);
+        LEDS.setBrightness(64);
+        FastLED.show();
+    }
+};
+RenderFastLEDLumini _outputFastLED;
+OutputLED *output = &_outputFastLED;
+#endif
 
 
 
@@ -206,14 +227,13 @@ void mapToDisplay(const float ledData[], CRGB rgbData[], const size_t size)
         }
         if (GAMMA != 1.0)
         {
-
-//            rgbData[i].r = constrain(roundf(pow(ledData[i * 3 + 0], GAMMA) * maxBrightness * 255), 0.0f, 255.0f);
-//            rgbData[i].g = constrain(roundf(pow(ledData[i * 3 + 1], GAMMA) * maxBrightness * 255), 0.0f, 255.0f);
-//            rgbData[i].b = constrain(roundf(pow(ledData[i * 3 + 2], GAMMA) * maxBrightness * 255), 0.0f, 255.0f);
+            rgbData[i].r = constrain(roundf(pow(ledData[i * 3 + 0], GAMMA) * MAX_BRIGHTNESS * 255), 0.0f, 255.0f);
+            rgbData[i].g = constrain(roundf(pow(ledData[i * 3 + 1], GAMMA) * MAX_BRIGHTNESS * 255), 0.0f, 255.0f);
+            rgbData[i].b = constrain(roundf(pow(ledData[i * 3 + 2], GAMMA) * MAX_BRIGHTNESS * 255), 0.0f, 255.0f);
             // Adafruit_Neopixel::gamma8 corresponds to GAMMA=2.6
-            rgbData[i].r = Adafruit_NeoPixel::gamma8(constrain((int)roundf(r * 255), 0, 255)) * MAX_BRIGHTNESS;
-            rgbData[i].g = Adafruit_NeoPixel::gamma8(constrain((int)roundf(g * 255), 0, 255)) * MAX_BRIGHTNESS;
-            rgbData[i].b = Adafruit_NeoPixel::gamma8(constrain((int)roundf(b * 255), 0, 255)) * MAX_BRIGHTNESS;
+            // rgbData[i].r = Adafruit_NeoPixel::gamma8(constrain((int)roundf(r * 255), 0, 255)) * MAX_BRIGHTNESS;
+            // rgbData[i].g = Adafruit_NeoPixel::gamma8(constrain((int)roundf(g * 255), 0, 255)) * MAX_BRIGHTNESS;
+            // rgbData[i].b = Adafruit_NeoPixel::gamma8(constrain((int)roundf(b * 255), 0, 255)) * MAX_BRIGHTNESS;
         }
         else
         {
