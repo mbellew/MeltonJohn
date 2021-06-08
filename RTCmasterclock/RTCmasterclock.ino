@@ -72,37 +72,36 @@ struct TimeParser
 };
 
 
-
-
-
-RTC_TimeTypeDef rtctime;
-int prevSeconds = -1;
-
 void setup()
 {
     M5.begin();
+    Serial.begin(250000);
     M5.Lcd.fillScreen(BLACK);
-    M5.Rtc.GetTime(&rtctime);
-    prevSeconds = rtctime.Seconds;
-
     InitIRTx();
 }
 
 
 TimeParser parser(Serial);
+RTC_TimeTypeDef rtctime;
+uint8_t prevSeconds = 255;
+
 
 void loop()
 {
     M5.Rtc.GetTime(&rtctime);
+    //Serial.print(rtctime.Hours); Serial.print(":");Serial.print(rtctime.Minutes); Serial.print(":");Serial.println(rtctime.Seconds);
+    
     if (rtctime.Seconds != prevSeconds)
     {
          char buf[50];
-         snprintf(buf, 50, "\xaa\x55\xaa\x55\n%02d:%02d:%02d\n", rtctime.Hours, rtctime.Minutes, rtctime.Seconds);
+         snprintf(buf, 50, "%02d:%02d:%02d\n", rtctime.Hours, rtctime.Minutes, rtctime.Seconds);
          ir_uart_tx((uint8_t *)buf, strlen(buf), true);
-         snprintf(buf, 50, "%02d:%02d:%02d", rtctime.Hours, rtctime.Minutes, rtctime.Seconds);
+         //snprintf(buf, 50, "%02d:%02d:%02d", rtctime.Hours, rtctime.Minutes, rtctime.Seconds);
          M5.Lcd.setCursor(10, 10);
          //M5.Lcd.fillScreen(BLACK);
          M5.Lcd.print(buf);
+         //Serial.println(buf);
+         prevSeconds = rtctime.Seconds;
     }
     parser.loop();
     prevSeconds = rtctime.Seconds;
