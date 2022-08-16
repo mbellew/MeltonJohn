@@ -557,7 +557,12 @@ void display_loop()
     float f32values[IMAGE_SIZE*3];
     CRGB rgbValues[IMAGE_SIZE];
 
-    renderPattern->renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
+    //renderPattern->renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
+    float time = RTCWrapper::time();
+//    char buf[20];
+//    snprintf(buf, 20, "%f", time);
+//    _println(buf);
+    renderPattern->renderFrame(time, &spectrum, f32values, IMAGE_SIZE*3);
 
     // _println("mapToDisplay");
     mapToDisplay(f32values, rgbValues, IMAGE_SIZE*3);
