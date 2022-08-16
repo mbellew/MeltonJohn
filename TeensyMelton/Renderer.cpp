@@ -99,7 +99,7 @@ private:
         patterns[countOfPatterns++] = createPebbles();
         // patterns[countOfPatterns++] = new BigWhiteLight2());
         patterns[countOfPatterns++] = createSwayBeat();
-        patterns[countOfPatterns++] = createEqNew();
+        //patterns[countOfPatterns++] = createEqNew();
     }
 
 
