@@ -1,0 +1,17 @@
+BeatDetect.cpp
+BeatDetect.hpp
+beat_data.cpp
+beat_data.h
+fftsg.cpp
+fftsg.hpp
+main.cpp
+MidiMix.cpp
+MidiMix.h
+MidiPatterns.cpp
+MultiLayerPatterns.cpp
+Patterns.cpp
+Patterns.h
+PCM.cpp
+PCM.hpp
+Renderer.cpp
+Renderer.h
