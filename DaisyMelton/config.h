@@ -11,11 +11,12 @@
 //#define LIGHTBUCKET 1
 
 // PLATFORM -- pick one
-#ifdef ESP32
-#define PLATFORM_M5STACK 1
-#else
-#define PLATFORM_TEENSY 1
-#endif
+#define PLATFORM_DAISY 1
+// #ifdef ESP32
+// #define PLATFORM_M5STACK 1
+// #else
+// #define PLATFORM_TEENSY 1
+// #endif
 
 #define OUTPUT_DEBUG 0
 #define OUTPUT_ADAFRUIT_NEOPIXELS 0
@@ -113,5 +114,13 @@ extern void _println(float f);
 #endif // !DEBUG_LOG
 
 //extern int random(void);
+
+
+
+// fastled is not supported so fixup
+#include "pixeltypes.h"
+
+
+
 
 #endif //MELTONJOHN_CONFIG_H

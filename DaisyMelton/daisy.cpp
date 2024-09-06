@@ -1,19 +1,19 @@
-#include "TeensyMelton.h"
+#include "DaisyMelton.h"
 #ifdef PLATFORM_TEENSY
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "Patterns.h"
-#include <Audio.h>
-#include <Wire.h>
-#include <SPI.h>
-#include <SD.h>
+//#include <Audio.h>
+//#include <Wire.h>
+//#include <SPI.h>
+//#include <SD.h>
 //#include <SerialFlash.h>
 #if OUTPUT_FASTLED_DMX
 #include "DmxSimple.h"
 #endif
-#include <FastLED.h>
+//#include <FastLED.h>
 
 #define DebugSerial Serial
 

@@ -1,6 +1,6 @@
-#include "TeensyMelton.h"
-#include "FastLED.h"
-#include "Adafruit_NeoPixel.h"
+#include "DaisyMelton.h"
+//#include "FastLED.h"
+// #include "Adafruit_NeoPixel.h"
 
 extern void loop_fft();
 
@@ -142,22 +142,23 @@ RenderAdafruitNeoPixel _outputAdafruit;
 OutputLED *output = &_outputAdafruit;
 #endif
 
-class _RenderFastLED : public OutputLED
-{
-protected:
-    CRGB *leds;
 
-public:
-    void write(const CRGB data[], size_t count) override
-    {
-        //assert(IMAGE_SIZE <= 60);
-        memcpy(leds, data, ::min(count,(size_t)IMAGE_SIZE)*sizeof(CRGB));
-        FastLED.show();
-    }
+// class _RenderFastLED : public OutputLED
+// {
+// protected:
+//     CRGB *leds;
 
-    void loop() override
-    {}
-};
+// public:
+//     void write(const CRGB data[], size_t count) override
+//     {
+//         //assert(IMAGE_SIZE <= 60);
+//         memcpy(leds, data, ::min(count,(size_t)IMAGE_SIZE)*sizeof(CRGB));
+//         FastLED.show();
+//     }
+
+//     void loop() override
+//     {}
+// };
 
 
 #if OUTPUT_FASTLED_DMX
@@ -292,7 +293,7 @@ void _format(int n)
 #if 0
 #include "DMXSerial.h"
 #include "DmxSimple.h"
-#include "FastLED.h"
+// #include "FastLED.h"
 #define IMAGE_SIZE 50
 #define NEOPIXEL_PIN 2
 #define DMX_TX_PIN 1
