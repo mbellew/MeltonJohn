@@ -28,40 +28,40 @@ inline float randomFloat()
     return random() / (float) RAND_MAX;
 }
 
-inline float IN(float a, float b, float r)
+inline float INTERPOLATE(float a, float b, float r)
 {
     //return a * (1.0 - r) + b * (r);
     return a + r*(b-a);
 }
 
-inline int MAX(int a, int b)
+inline int MAX2(int a, int b)
 {
     return a > b ? a : b;
 }
 
-inline float MAX(float a, float b)
+inline float MAX2(float a, float b)
 {
     return a > b ? a : b;
 }
 
-inline float MAX(float a, float b, float c)
+inline float MAX3(float a, float b, float c)
 {
-    return MAX(a, MAX(b, c));
+    return MAX2(a, MAX2(b, c));
 }
 
-inline int MIN(int a, int b)
+inline int MIN3(int a, int b)
 {
     return a < b ? a : b;
 }
 
-inline float MIN(float a, float b)
+inline float MIN2(float a, float b)
 {
     return a < b ? a : b;
 }
 
-inline float MIN(float a, float b, float c)
+inline float MIN3(float a, float b, float c)
 {
-    return MIN(a, MIN(b, c));
+    return MIN2(a, MIN2(b, c));
 }
 
 #undef constrain
@@ -162,9 +162,9 @@ public:
     // alpha blend
     Color(const Color &a, const Color &b, float ratio) :
             rgba {
-                    IN(a.rgba.r, b.rgba.r, ratio),
-                    IN(a.rgba.g, b.rgba.g, ratio),
-                    IN(a.rgba.b, b.rgba.b, ratio),
+                    INTERPOLATE(a.rgba.r, b.rgba.r, ratio),
+                    INTERPOLATE(a.rgba.g, b.rgba.g, ratio),
+                    INTERPOLATE(a.rgba.b, b.rgba.b, ratio),
                     1.0
             }
     {
@@ -173,9 +173,9 @@ public:
     // alpha blend
     Color(const Color &a, const Color &b) :
             rgba {
-                    IN(a.rgba.r, b.rgba.r, b.a()),
-                    IN(a.rgba.g, b.rgba.g, b.a()),
-                    IN(a.rgba.b, b.rgba.b, b.a()),
+                    INTERPOLATE(a.rgba.r, b.rgba.r, b.a()),
+                    INTERPOLATE(a.rgba.g, b.rgba.g, b.a()),
+                    INTERPOLATE(a.rgba.b, b.rgba.b, b.a()),
                     1.0
             }
     {
@@ -212,7 +212,7 @@ public:
 
     static void saturate(float rgb[4], float i = 1.0)
     {
-        float m = MAX(rgb[0], MAX(rgb[1], rgb[2]));
+        float m = MAX3(rgb[0], rgb[1], rgb[2]);
         if (m <= 0)
         {
             rgb[0] = rgb[1] = rgb[2] = 0;
@@ -244,8 +244,8 @@ public:
     static void rgb2hsl(const float *rgb, float *hsl)
     {
         float r = rgb[0], g = rgb[1], b = rgb[2];
-        float min = MIN(r, g, b);
-        float max = MAX(r, g, b);
+        float min = MIN3(r, g, b);
+        float max = MAX3(r, g, b);
         float diff = max - min;
         float h = 0, s = 0, l = (min + max) / 2;
 
@@ -324,9 +324,9 @@ inline Color operator*(const Color &c, float f)
 //        c.rgba.a = 1.0;
 //        return c;
 //    }
-//    c.rgba.r = IN(c.rgba.r, a.rgba.r, a.rgba.a);
-//    c.rgba.g = IN(c.rgba.g, a.rgba.g, a.rgba.a);
-//    c.rgba.b = IN(c.rgba.b, a.rgba.b, a.rgba.a);
+//    c.rgba.r = INTERPOLATE(c.rgba.r, a.rgba.r, a.rgba.a);
+//    c.rgba.g = INTERPOLATE(c.rgba.g, a.rgba.g, a.rgba.a);
+//    c.rgba.b = INTERPOLATE(c.rgba.b, a.rgba.b, a.rgba.a);
 //    c.rgba.a = 1.0;
 //    return c;
 //}
@@ -655,7 +655,7 @@ public:
             return map[0].getChannel(color);
         if (i + 1 >= IMAGE_SIZE - 1)
             return map[IMAGE_SIZE - 1].getChannel(color);
-        return IN(map[i].getChannel(color), map[i + 1].getChannel(color), f);
+        return INTERPOLATE(map[i].getChannel(color), map[i + 1].getChannel(color), f);
     }
 
     float getValue_wrap(unsigned color, float f)
@@ -667,7 +667,7 @@ public:
         if (i >= IMAGE_SIZE)
             i = i - IMAGE_SIZE;
         int j = (i + 1) % IMAGE_SIZE;
-        return IN(map[i].getChannel(color), map[j].getChannel(color), f);
+        return INTERPOLATE(map[i].getChannel(color), map[j].getChannel(color), f);
     }
 
     void getRGB(float f, float *rgb)
@@ -777,7 +777,7 @@ public:
     void stretch(float sx, float cx)
     {
         Image cp(*this);
-        float center = IN(LEFTMOST_PIXEL, RIGHTMOST_PIXEL, cx);
+        float center = INTERPOLATE(LEFTMOST_PIXEL, RIGHTMOST_PIXEL, cx);
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
             float from = (i - center) / sx + center;
@@ -926,7 +926,7 @@ public:
         // convert sx,cx to dx
         for (int i = LEFTMOST_PIXEL; i <= RIGHTMOST_PIXEL; i++)
         {
-            float center = IN(-0.5, 0.5, ctx.points[i].cx);
+            float center = INTERPOLATE(-0.5, 0.5, ctx.points[i].cx);
             ctx.points[i].dx += (ctx.points[i].rad - center) * (ctx.points[i].sx - 1.0f);
         }
     }

@@ -220,7 +220,7 @@ public:
         else
         {
             // c = Color(1.0, 1.0-t, 1.0-m); // red
-            float v = MAX(ctx.vol, ctx.vol_att);
+            float v = MAX2(ctx.vol, ctx.vol_att);
             c = Color(1.0f, 1.0f - v / 2.0f, 1.0f - v / 2.0f); // red
             bg = Color(1.0f, 1.0f, 1.0f);
         }
@@ -228,8 +228,8 @@ public:
         //Color c(ctx.treb,ctx.mid,ctx.bass);
         //int v = ctx.vol;// / MAX(1,ctx.vol_att);
         //int bass = ctx.bass; // MAX(ctx.bass_att, ctx.bass);
-        float bass = MAX(ctx.bass_att, ctx.bass);
-        int w = (int)MIN((int)(IMAGE_SIZE / 2 - 1), (int)roundf(bass * 3.0f));
+        float bass = MAX2(ctx.bass_att, ctx.bass);
+        int w = (int)MIN2((int)(IMAGE_SIZE / 2 - 1), (int)roundf(bass * 3.0f));
         image.setRGB(IMAGE_SIZE / 2 - 1 - w, c);
         image.setRGB(IMAGE_SIZE / 2 + w, c);
 
@@ -316,9 +316,9 @@ public:
             Color color1 = cp.getRGB(2 * i);
             Color color2 = cp.getRGB(2 * i + 1);
             Color c(
-                    MAX(color1.r(), color2.r()),
-                    MAX(color1.g(), color2.g()),
-                    MAX(color1.b(), color2.b()), 0.2
+                    MAX2(color1.r(), color2.r()),
+                    MAX2(color1.g(), color2.g()),
+                    MAX2(color1.b(), color2.b()), 0.2
             );
             image.setRGBA(i, c);
             image.setRGBA(i + IMAGE_SIZE / 2, c);
@@ -408,7 +408,7 @@ public:
         {
             stretch = 2.0;
             if (ctx.time < ctx.lastbeat + 0.2)
-                stretch = 1.5f + 0.5f * MIN(1.0, ctx.bass / ctx.bass_att);
+                stretch = 1.5f + 0.5f * MIN2(1.0, ctx.bass / ctx.bass_att);
             ctx.cx = 0.5;
             ctx.fade = 0.85;
         } else
@@ -521,9 +521,9 @@ public:
 
     void draw(PatternContext &ctx, Image &image) override
     {
-        float bass = constrain(MAX(ctx.bass, ctx.bass_att) - 1.3f);
-        float mid = constrain(MAX(ctx.mid, ctx.mid_att) - 1.3f);
-        float treb = constrain(MAX(ctx.treb, ctx.treb_att) - 1.3f);
+        float bass = constrain(MAX2(ctx.bass, ctx.bass_att) - 1.3f);
+        float mid = constrain(MAX2(ctx.mid, ctx.mid_att) - 1.3f);
+        float treb = constrain(MAX2(ctx.treb, ctx.treb_att) - 1.3f);
         Color c = color->next(ctx.time * 2);
         Color c1, c2;
 
@@ -598,9 +598,9 @@ public:
 
     void draw(PatternContext &ctx, Image &image) override
     {
-        float bass = constrain(MAX(ctx.bass, ctx.bass_att) - 1.3f);
-        float mid = constrain(MAX(ctx.mid, ctx.mid_att) - 1.3f);
-        float treb = constrain(MAX(ctx.treb, ctx.treb_att) - 1.3f);
+        float bass = constrain(MAX2(ctx.bass, ctx.bass_att) - 1.3f);
+        float mid = constrain(MAX2(ctx.mid, ctx.mid_att) - 1.3f);
+        float treb = constrain(MAX2(ctx.treb, ctx.treb_att) - 1.3f);
         Color c = color->next(ctx.time * 2.0f);
         Color c1 = c + Color(mid, bass, treb) * 0.4f;
         Color c2 = c1;
@@ -671,11 +671,11 @@ public:
 
     void per_frame(PatternContext &ctx) override
     {
-        float bass = MAX(ctx.bass, ctx.bass_att);
+        float bass = MAX2(ctx.bass, ctx.bass_att);
         posB = (int)(bass * bass * (IMAGE_SCALE / 2));
         posB = constrain(posB, 0, IMAGE_SIZE - 1);
 
-        float treb = MAX(ctx.treb, ctx.treb_att);
+        float treb = MAX2(ctx.treb, ctx.treb_att);
         posT = (int)(treb * treb * (IMAGE_SCALE / 2));
         posT = constrain(posT, 0, IMAGE_SIZE - 1);
         posT = IMAGE_SIZE - 1 - posT;
@@ -806,16 +806,16 @@ public:
         Color c;
         // c = white * 0.2 + white * 0.5 * ctx.bass; // Color(mid,bass,treb) * 0.4;
         // c = white * 0.2 + Color(bass,mid,treb) * 0.4;
-        c = Color(MAX(0.2, bass), MAX(0.2, mid), MAX(0.2, treb));
+        c = Color(MAX2(0.2, bass), MAX2(0.2, mid), MAX2(0.2, treb));
         c = c.constrain2();
         // c = white * 0.3 + c * 0.7;
         //c.saturate(1.0);
         if (posLast == pos)
         {
             c = Color(
-                    MAX(c.r(), colorLast.r()),
-                    MAX(c.g(), colorLast.g()),
-                    MAX(c.b(), colorLast.b())
+                    MAX2(c.r(), colorLast.r()),
+                    MAX2(c.g(), colorLast.g()),
+                    MAX2(c.b(), colorLast.b())
             );
         }
         image.setRGB((pos + 1) % IMAGE_SIZE, black);
@@ -885,15 +885,15 @@ public:
         if (option)
         {
             c = WHITE;
-            float v = MAX(ctx.vol_att, ctx.vol);
-            float s = MIN(1.0f, 0.55f + 0.3f * v);
+            float v = MAX2(ctx.vol_att, ctx.vol);
+            float s = MIN2(1.0f, 0.55f + 0.3f * v);
             c = c.saturate(s);
         }
         else
         {
             c = palette->get(beatCount);
-            float v = MAX(ctx.vol_att, ctx.vol);
-            float s = MIN(1.0f, 0.55f + 0.3f * v);
+            float v = MAX2(ctx.vol_att, ctx.vol);
+            float s = MIN2(1.0f, 0.55f + 0.3f * v);
             c = c.saturate(s);
         }
         ctx.ob_right = c;
@@ -916,7 +916,7 @@ public:
             c = palette->get((int)beatCount);
         }
         float v = MAX(ctx.vol_att, ctx.vol);
-        c.saturate(MIN(1.0,0.4 + v/2.0));
+        c.saturate(MINTERPOLATE(1.0,0.4 + v/2.0));
 
         int p = ((int)round(pos)) % IMAGE_SIZE;
         image.setRGB(p, c);
@@ -976,7 +976,7 @@ public:
 
     void per_frame(PatternContext &ctx) override
     {
-        vol_mean = IN(vol_mean, ctx.vol, 0.05);
+        vol_mean = INTERPOLATE(vol_mean, ctx.vol, 0.05);
         vol_mean = constrain(vol_mean, 0.1, 10000.0);
         if (ctx.beat)
         {
@@ -1010,7 +1010,7 @@ public:
         if (f < 0.3)
         {
             Color c = palette->get(palette_color);
-            int pos = (int)round(IN(LEFTMOST_PIXEL, RIGHTMOST_PIXEL, ctx.cx));
+            int pos = (int)round(INTERPOLATE(LEFTMOST_PIXEL, RIGHTMOST_PIXEL, ctx.cx));
             image.setRGB(pos, c);
         }
     }
@@ -1051,7 +1051,7 @@ public:
         float b = constrain(ctx.bass / ctx.vol - 2.1);
         Color c = Color(1.0f - b, 1.0f - t - b, 1.0f - t);
         c = c.constrain();
-        float s = MIN(1.0f, 0.3f + v);
+        float s = MIN2(1.0f, 0.3f + v);
         if (!ctx.beat)
             c = c * s;
         ctx.ib_size = (unsigned)ctx.beat;
@@ -1115,7 +1115,7 @@ public:
         float b = constrain(ctx.bass / ctx.vol - 2.1f);
         Color c = Color(1.0f - b, 1.0f - t - b, 1.0f - t);
         c = c.constrain();
-        float s = MIN(1.0f, 0.3f + v);
+        float s = MIN2(1.0f, 0.3f + v);
         if (!ctx.beat)
             c = c * s;
         ctx.ib_size = (unsigned)ctx.beat;
