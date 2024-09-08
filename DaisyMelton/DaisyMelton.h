@@ -4,8 +4,10 @@
 
 #ifndef TEENSYMELTON_TEENSYMELTON_H
 #define TEENSYMELTON_TEENSYMELTON_H
+#include <Arduino.h>
 #include "config.h"
-#include "math.h"
+#include <math.h>
+#include <wiring.h>
 
 
 

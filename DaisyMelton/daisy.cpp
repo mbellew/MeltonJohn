@@ -1,5 +1,23 @@
 #include "DaisyMelton.h"
-#ifdef PLATFORM_DAISY
+
+#include <AudioClass.h>
+#include <CpuLoadMeter.h>
+#include <DaisyDSP.h>
+#include <DaisyDuino.h>
+#include <PersistentStorage.h>
+#include <hal_conf_extra.h>
+#include <U8g2lib.h>
+
+
+#ifdef U8X8_HAVE_HW_SPI
+#include <SPI.h>
+#endif
+#ifdef U8X8_HAVE_HW_I2C
+#include <Wire.h>
+#endif
+
+using namespace daisy;
+using namespace daisysp;
 
 #include <math.h>
 #include <stdio.h>
@@ -152,10 +170,18 @@ struct SoundFFT
 #endif
 
 
+class SpectrumAnalyzer
+{
+  public:
+      virtual bool next(Spectrum &spectrum) = 0;
+};
+
+
 #if USE_MSGEQ7
+#error Not expected for Daisy
 #include "MD_MSGEQ7.h"
 
-class SoundFFT
+class SoundFFT : Spectrum Analyzer
 {
     const int eqVDD = 19;
     const int eqRESET = 18;
@@ -392,7 +418,7 @@ public:
 };
 
 
-class SoundFFT sound;
+SpectrumAnalyzer *sound = NULL;
 #if OUTPUT_TEENSYDMX
 class RenderTeensyDMX outputTeensyDmx(Serial1);
 class OutputLED *output=&outputTeensyDmx;
@@ -470,41 +496,31 @@ void testPattern()
     }
 }
 
+
+
+
+DaisyHardware hw;
+
+// the magic incantation
+U8G2_SSD1309_128X64_NONAME2_F_4W_SW_SPI
+    oled(U8G2_R0, /* clock=*/8, /* data=*/10, /* cs=*/7, /* dc=*/9);
+
+
+
+
 void setup_daisy()
 {
-// #if USE_ADC
-//     // on octo shield this give us
-//     // 1 23 22 19 18
-//     // G  V  G AD  V
-//     pinMode(1, OUTPUT);
-//     digitalWrite(ADC_MIC_GND_PIN, LOW);
+    hw = DAISY.init(DAISY_FIELD, AUDIO_SR_48K);
+    float sample_rate = DAISY.AudioSampleRate();
 
-//     pinMode(ADC_MIC_VCC_PIN, OUTPUT);
-//     digitalWrite(ADC_MIC_VCC_PIN, HIGH);
+    oled.setFont(u8g2_font_inb16_mf);
+    oled.setFontDirection(0);
+    oled.setFontMode(1);
+    oled.begin();
 
-//     pinMode(ADC_MIC_GND_PIN, OUTPUT);
-//     digitalWrite(ADC_MIC_GND_PIN, LOW);
-
-//     // 19 is controlled by AudioInputAnalog
-
-//     pinMode(18, OUTPUT);
-//     digitalWrite(18, HIGH);
-// #endif
-// #if USE_I2S
-//     // analog volume pot
-//     pinMode(A1, INPUT);
-// #endif
-//     DebugSerial.begin(115200);
-//     for (int i=0;i<100 && !DebugSerial;i++) delay(1);
-//     delay(1000);
-
-//     sound.begin();
-
-//     output->begin();
-
-//     if (0) testPattern();
-
-//     _println("exit setup()");
+    // DAISY.StartAudio(AudioCallback);
+    oled.clearBuffer();
+    oled.drawStr(10, 10, "melton");
 };
 
 
@@ -513,8 +529,11 @@ void loop_fft()
 {
     static Spectrum spectrum;
 
+    if (NULL == sound)
+      return;
+
     //if (fft.available())
-    if (sound.next(spectrum))
+    if (sound->next(spectrum))
     {
 //        LOG_print("FFT: ");
 //        for (int i=0; i<40; i++)
@@ -569,6 +588,3 @@ void loop_daisy()
 // //      loop_brightness = 0.5;// += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
 // #endif
 }
-
-
-#endif // PLATFORM_DAISY

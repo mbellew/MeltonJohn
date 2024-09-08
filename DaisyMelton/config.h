@@ -11,7 +11,7 @@
 //#define LIGHTBUCKET 1
 
 // PLATFORM -- pick one
-#ifdef STM32_CORE_VERSION
+#if 1 // def STM32_CORE_VERSION
 #define PLATFORM_DAISY 1
 #else
   #ifdef ESP32

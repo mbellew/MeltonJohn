@@ -1,7 +1,4 @@
-// #include "/Users/Matthew/AppData/Local/Arduino15/packages/STMicroelectronics/hardware/stm32/2.8.1/cores/arduino/Arduino.h"
 #include "DaisyMelton.h"
-//#include "FastLED.h"
-// #include "Adafruit_NeoPixel.h"
 
 extern void loop_fft();
 
