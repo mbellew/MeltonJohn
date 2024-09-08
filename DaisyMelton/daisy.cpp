@@ -1,5 +1,5 @@
 #include "DaisyMelton.h"
-#ifdef PLATFORM_TEENSY
+#ifdef PLATFORM_DAISY
 
 #include <math.h>
 #include <stdio.h>
@@ -470,41 +470,41 @@ void testPattern()
     }
 }
 
-void setup_teensy()
+void setup_daisy()
 {
-#if USE_ADC
-    // on octo shield this give us
-    // 1 23 22 19 18
-    // G  V  G AD  V
-    pinMode(1, OUTPUT);
-    digitalWrite(ADC_MIC_GND_PIN, LOW);
+// #if USE_ADC
+//     // on octo shield this give us
+//     // 1 23 22 19 18
+//     // G  V  G AD  V
+//     pinMode(1, OUTPUT);
+//     digitalWrite(ADC_MIC_GND_PIN, LOW);
 
-    pinMode(ADC_MIC_VCC_PIN, OUTPUT);
-    digitalWrite(ADC_MIC_VCC_PIN, HIGH);
+//     pinMode(ADC_MIC_VCC_PIN, OUTPUT);
+//     digitalWrite(ADC_MIC_VCC_PIN, HIGH);
 
-    pinMode(ADC_MIC_GND_PIN, OUTPUT);
-    digitalWrite(ADC_MIC_GND_PIN, LOW);
+//     pinMode(ADC_MIC_GND_PIN, OUTPUT);
+//     digitalWrite(ADC_MIC_GND_PIN, LOW);
 
-    // 19 is controlled by AudioInputAnalog
+//     // 19 is controlled by AudioInputAnalog
 
-    pinMode(18, OUTPUT);
-    digitalWrite(18, HIGH);
-#endif
-#if USE_I2S
-    // analog volume pot
-    pinMode(A1, INPUT);
-#endif
-    DebugSerial.begin(115200);
-    for (int i=0;i<100 && !DebugSerial;i++) delay(1);
-    delay(1000);
+//     pinMode(18, OUTPUT);
+//     digitalWrite(18, HIGH);
+// #endif
+// #if USE_I2S
+//     // analog volume pot
+//     pinMode(A1, INPUT);
+// #endif
+//     DebugSerial.begin(115200);
+//     for (int i=0;i<100 && !DebugSerial;i++) delay(1);
+//     delay(1000);
 
-    sound.begin();
+//     sound.begin();
 
-    output->begin();
+//     output->begin();
 
-    if (0) testPattern();
+//     if (0) testPattern();
 
-    _println("exit setup()");
+//     _println("exit setup()");
 };
 
 
@@ -536,39 +536,39 @@ void loop_fft()
 
 
 
-void loop_teensy()
+void loop_daisy()
 {
-    static unsigned long int loop_frame = 0;
-    static Spectrum spectrum;
+//     static unsigned long int loop_frame = 0;
+//     static Spectrum spectrum;
 
-    if (!sound.next(spectrum))
-      return;
+//     if (!sound.next(spectrum))
+//       return;
 
-    loop_frame++;
+//     loop_frame++;
     
-//    LOG_println(""); LOG_print("frame"); LOG_println(loop_frame);
-    float f32values[IMAGE_SIZE*3];
-    CRGB rgbValues[IMAGE_SIZE];
+// //    LOG_println(""); LOG_print("frame"); LOG_println(loop_frame);
+//     float f32values[IMAGE_SIZE*3];
+//     CRGB rgbValues[IMAGE_SIZE];
 
-//    LOG_println("renderFrame");
-    DebugSerial.flush();
-    delay(1);
-    renderPattern->renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
+// //    LOG_println("renderFrame");
+//     DebugSerial.flush();
+//     delay(1);
+//     renderPattern->renderFrame(millis() / 1000.0, &spectrum, f32values, IMAGE_SIZE*3);
 
-    // LOG_println("mapToDisplay");
-    mapToDisplay(f32values, rgbValues, IMAGE_SIZE*3);
+//     // LOG_println("mapToDisplay");
+//     mapToDisplay(f32values, rgbValues, IMAGE_SIZE*3);
  
-    // LOG_println("outputFastLED.write");
-    output->write(rgbValues, IMAGE_SIZE);
-#if OUTPUT_DEBUG
-    outputDebug->write(rgbValues, IMAGE_SIZE);
-#endif
+//     // LOG_println("outputFastLED.write");
+//     output->write(rgbValues, IMAGE_SIZE);
+// #if OUTPUT_DEBUG
+//     outputDebug->write(rgbValues, IMAGE_SIZE);
+// #endif
 
-#if USE_I2S
-//      int volPot = analogRead(A1);
-//      loop_brightness = 0.5;// += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
-#endif
+// #if USE_I2S
+// //      int volPot = analogRead(A1);
+// //      loop_brightness = 0.5;// += 0.1 * (loop_brightness - (volPot/1023.0)); // smooth to reduce noise
+// #endif
 }
 
 
-#endif // PLATFORM_TEENSY
+#endif // PLATFORM_DAISY

@@ -1,3 +1,4 @@
+// #include "/Users/Matthew/AppData/Local/Arduino15/packages/STMicroelectronics/hardware/stm32/2.8.1/cores/arduino/Arduino.h"
 #include "DaisyMelton.h"
 //#include "FastLED.h"
 // #include "Adafruit_NeoPixel.h"
@@ -5,8 +6,8 @@
 extern void loop_fft();
 
 #ifdef PLATFORM_M5STACK
-extern void setup_m5();
-extern void loop_m5();
+extern void setup_daisy();
+extern void loop_daisy();
 
 void setup()
 {
@@ -41,6 +42,20 @@ void loop()
 #endif
 
 
+#ifdef PLATFORM_DAISY
+extern void setup_daisy();
+extern void loop_daisy();
+
+void setup()
+{
+  setup_daisy();
+}
+void loop()
+{
+  loop_daisy();
+}
+#endif
+
 
 
 
@@ -59,7 +74,7 @@ public:
     {
     }
 
-    void write(const CRGB data[], size_t count) override
+    void write(const CRGB data[], unsigned count) override
     {
         serial.flush();
         delayMicroseconds(44);
@@ -80,8 +95,8 @@ public:
     {}
 };
 
-RenderMyDmx _renderMyDmx(Serial1);
-RenderMyDmx *output = &_renderMyDmx;
+RenderMyDMX _renderMyDmx(Serial1);
+OutputLED *output = &_renderMyDmx;
 #endif
 
 
@@ -285,7 +300,6 @@ void _format(int n)
         _print(" ");
     _print(n);
 }
-
 
 
 

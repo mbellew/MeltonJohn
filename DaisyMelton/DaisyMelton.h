@@ -5,6 +5,7 @@
 #ifndef TEENSYMELTON_TEENSYMELTON_H
 #define TEENSYMELTON_TEENSYMELTON_H
 #include "config.h"
+#include "math.h"
 
 
 

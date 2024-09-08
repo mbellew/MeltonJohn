@@ -11,12 +11,15 @@
 //#define LIGHTBUCKET 1
 
 // PLATFORM -- pick one
+#ifdef STM32_CORE_VERSION
 #define PLATFORM_DAISY 1
-// #ifdef ESP32
-// #define PLATFORM_M5STACK 1
-// #else
-// #define PLATFORM_TEENSY 1
-// #endif
+#else
+  #ifdef ESP32
+  #define PLATFORM_M5STACK 1
+  #else
+  #define PLATFORM_TEENSY 1
+  #endif
+#endif
 
 #define OUTPUT_DEBUG 0
 #define OUTPUT_ADAFRUIT_NEOPIXELS 0
@@ -48,18 +51,24 @@
 #endif
 
 
-/** MeltonJohn uses a Teensy4 with an AudioBoard **/
 #ifdef MELTONJOHN
+
     #define IMAGE_SIZE 20
 
-    // OUTPUT LIGHT
-    #undef OUTPUT_TEENSYDMX
-    #define OUTPUT_TEENSYDMX 1
-
+#ifdef TEENSY_PLATFORM
+    /** MeltonJohn Teensy4 with an MSGEQ7 spectrum analyzer sub-board **/
     // INPUT SOUND
     //#undef USE_I2S
     //#define USE_I2S 1
     #define USE_MSGEQ7 1
+    #undef OUTPUT_TEENSYDMX
+    #define OUTPUT_TEENSYDMX 1
+#else
+    /* MeltonJohn Daisy board with built-in audio handler **/
+    #undef OUTPUT_MYDMX
+    #define OUTPUT_MYDMX 1
+#endif
+
 #endif
 
 
