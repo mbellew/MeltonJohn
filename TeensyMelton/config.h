@@ -6,8 +6,8 @@
 #define MELTONJOHN_CONFIG_H
 
 // APPLICATION -- pick one
-//#define MELTONJOHN 1
-#define BICYCLEPOLE 1
+#define MELTONJOHN 1
+//#define BICYCLEPOLE 1
 //#define LIGHTBUCKET 1
 
 // PLATFORM -- pick one
@@ -111,7 +111,7 @@ extern void _println(float f);
 
 #endif // !DEBUG_LOG
 
-extern int random(void);
+// random() is provided by the platform (Teensy/Arduino/stdlib)
 
 #endif //MELTONJOHN_CONFIG_H
 

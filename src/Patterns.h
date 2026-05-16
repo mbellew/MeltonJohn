@@ -12,6 +12,10 @@
 #define M_PIf32 ((float)M_PI)
 #endif
 
+#ifndef MAX
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#endif
+
 
 inline unsigned randomInt(unsigned max)
 {

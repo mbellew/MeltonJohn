@@ -56,7 +56,7 @@
     #define IMAGE_SIZE 20
 
 #ifdef TEENSY_PLATFORM
-    /** MeltonJohn Teensy4 with an MSGEQ7 spectrum analyzer sub-board **/
+    /** MeltonJohn Teensy4 with an MSGEQ7 spectrum analyzer sub-board **/    // INPUT SOUND
     // INPUT SOUND
     //#undef USE_I2S
     //#define USE_I2S 1
@@ -64,9 +64,24 @@
     #undef OUTPUT_TEENSYDMX
     #define OUTPUT_TEENSYDMX 1
 #else
-    /* MeltonJohn Daisy board with built-in audio handler **/
+    /** MeltonJohn Daisy Patch — built-in audio codec, DMX via MIDI TRS + MAX3485 **/
     #undef OUTPUT_MYDMX
     #define OUTPUT_MYDMX 1
+
+    // Audio input — matches AUDIO_SR_8K enum passed to DAISY.init()
+    // 4 kHz Nyquist covers bass/mid/treb bands used by the visualiser.
+    // Change to 16000 + FFT_SIZE 512 for finer treble resolution.
+    #define DAISY_SAMPLE_RATE_HZ  8000
+    #define FFT_SIZE              256    // power of 2; window = FFT_SIZE/SR = 32 ms
+
+    // Frequency bin ranges at 8 kHz / FFT_SIZE=256 → 31.25 Hz per bin.
+    // These mirror the effective ranges of the Teensy FFT1024 @ 44.1 kHz code.
+    #define BASS_BIN_LO  1
+    #define BASS_BIN_HI  8    //  31 – 250 Hz
+    #define MID_BIN_LO   9
+    #define MID_BIN_HI  21    // 281 – 656 Hz
+    #define TREB_BIN_LO 22
+    #define TREB_BIN_HI 80    // 688 – 2500 Hz
 #endif
 
 #endif
