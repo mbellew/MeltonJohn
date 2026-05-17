@@ -60,7 +60,7 @@ class BeatDetect
 		PCM *pcm;
 
 		/** Methods */
-		explicit BeatDetect(PCM *pcm);
+		explicit BeatDetect(PCM *pcm, float sampleRate = 44100.0f);
 		~BeatDetect();
 		void reset();
 		void detectFromSamples();
@@ -75,6 +75,7 @@ class BeatDetect
         }
 
 	private:
+        float sampleRate;
 		int beat_buffer_pos;
         float bass_buffer[BEAT_HISTORY_LENGTH];
 		float bass_history;

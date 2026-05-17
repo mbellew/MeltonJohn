@@ -37,9 +37,10 @@
 #include "BeatDetect.hpp"
 
 
-BeatDetect::BeatDetect(PCM *_pcm)
+BeatDetect::BeatDetect(PCM *_pcm, float sampleRate)
 {
     this->pcm=_pcm;
+    this->sampleRate=sampleRate;
 
     this->vol_instant=0;
     this->vol_history=0;
@@ -109,18 +110,18 @@ void BeatDetect::detectFromSamples()
     pcm->getSpectrum(vdataL, CHANNEL_0, FFT_LENGTH, 0.0);
     pcm->getSpectrum(vdataR, CHANNEL_1, FFT_LENGTH, 0.0);
 
-    // OK, we're not really using this number 44.1 anywhere
-    // This is more of a nod to the fact that if the actually data rate is REALLY different
-    // then in theory the bass/mid/treb ranges should be adjusted.
-    // In practice, I doubt it would adversely affect the actually display very much
-    getBeatVals(44100.0f, FFT_LENGTH, vdataL, vdataR);
+    getBeatVals(sampleRate, FFT_LENGTH, vdataL, vdataR);
 }
 
 
 void BeatDetect::getBeatVals( float samplerate, unsigned fft_length, float *vdataL, float *vdataR )
 {
-    assert(fft_length >= 256);
-    unsigned ranges[4]  = {0, 3, 23, 255};
+    // Target Hz boundaries: bass 0–500, mid 500–4000, treb 4000–Nyquist
+    auto hzToBin = [&](float hz) -> unsigned {
+        unsigned bin = (unsigned)(hz * fft_length / samplerate);
+        return bin < fft_length ? bin : fft_length - 1;
+    };
+    unsigned ranges[4] = { 0, hzToBin(500.0f), hzToBin(4000.0f), fft_length - 1 };
 
     bass_instant=0;
     for (unsigned i=ranges[0] ; i<ranges[1] ; i++)
@@ -143,7 +144,12 @@ void BeatDetect::getBeatVals( float samplerate, unsigned fft_length, float *vdat
     treb_buffer[beat_buffer_pos] = treb_instant;
     treb_history += treb_instant * (1.0/BEAT_HISTORY_LENGTH);
 
-    vol_instant  = (bass_instant + mid_instant + treb_instant) / 3.0f;
+    float bass_bins = ranges[1] - ranges[0];
+    float mid_bins  = ranges[2] - ranges[1];
+    float treb_bins = ranges[3] - ranges[2];
+    vol_instant = (bass_instant / fmax(1.0f, bass_bins)
+                 + mid_instant  / fmax(1.0f, mid_bins)
+                 + treb_instant / fmax(1.0f, treb_bins)) / 3.0f;
     vol_history -= (vol_buffer[beat_buffer_pos])* (1.0/BEAT_HISTORY_LENGTH);
     vol_buffer[beat_buffer_pos] = vol_instant;
     vol_history += vol_instant * (1.0/BEAT_HISTORY_LENGTH);

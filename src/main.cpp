@@ -209,7 +209,6 @@ int main(int argc, char *argv[])
 
 
     PCM pcm;
-    BeatDetect beatDetect(&pcm);
     Renderer *renderer = createRenderer();
 
     /* The sample type to use */
@@ -219,6 +218,8 @@ int main(int argc, char *argv[])
         .rate = 44100,
         .channels = 2
     };
+
+    BeatDetect beatDetect(&pcm, (float)ss.rate);
 
     int error;
     /* Create the recording stream */
@@ -274,20 +275,14 @@ int main(int argc, char *argv[])
 
             if (ss.format == PA_SAMPLE_FLOAT32)
             {
-//                if (ss.channels == 1)
-//                    pcm.addPCMfloat_mono(audioSamples, SAMPLES);
-//                else
-                    pcm.addPCMfloat(audioSamples, SAMPLES);
+                    pcm.addPCMfloat_2ch(audioSamples, SAMPLES * ss.channels);
             }
             else
             {
-//                if (ss.channels == 1)
-//                    pcm.addPCM16Data_mono((short *)audioSamples, SAMPLES);
-//                else
-                    pcm.addPCM16Data((short *)audioSamples, SAMPLES);
+                    pcm.addPCM16Data_2ch((short *)audioSamples, SAMPLES);
             }
             time = time_in_seconds();
-        } while (false && time < next_frame_time);
+        } while (time < next_frame_time);
         next_frame_time += frame_duration;
 
         beatDetect.detectFromSamples();

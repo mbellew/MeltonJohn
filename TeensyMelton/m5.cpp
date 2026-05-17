@@ -56,7 +56,7 @@ struct SoundFFT
     BeatDetect beatDetect;
     int samples = 0;
 
-    SoundFFT() : beatDetect(&pcm)
+    SoundFFT() : beatDetect(&pcm, 44100.0f)
     {
     }
 
@@ -98,7 +98,7 @@ struct SoundFFT
                 size_t count = bytesread/2;
                 for (int i=0 ; i<count ; i++)
                     f[i] = buf[i] / 16384.0f;
-                pcm.addPCMfloat(f, count);
+                pcm.addPCMfloat_mono(f, count);
                 samples += bytesread / 2;
             }
         } while (bytesread == sizeof(buf));

@@ -59,12 +59,12 @@ public:
     PCM();
     ~PCM();
 
-    void addPCMfloat( const float *PCMdata, size_t samples );
+    void addPCMfloat_mono( const float *PCMdata, size_t samples );
     void addPCMfloat_2ch( const float *PCMdata, size_t count );
-    void addPCM16( const short [2][512] );
-    void addPCM16Data( const short* pcm_data, size_t samples );
-    void addPCM8( const unsigned char [2][1024] );
-    void addPCM8_512( const unsigned char [2][512] );
+    void addPCM16_2ch( const short [2][512] );
+    void addPCM16Data_2ch( const short* pcm_data, size_t samples );
+    void addPCM8_2ch( const unsigned char [2][1024] );
+    void addPCM8_512_2ch( const unsigned char [2][512] );
 
     /**
      * PCM data

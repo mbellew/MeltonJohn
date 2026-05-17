@@ -104,7 +104,7 @@ PCM::PCM() : start(0), newsamples(0)
     // see fftsg.cpp length of ip >= 2+sqrt(n/2)
     // in this case n=2*FFT_LENGTH, so 34 is big enough to handle FFT_LENGTH=1024
     ip = (int *)malloc(34 * sizeof(int));
-    memset(w, 0, 34 * sizeof(int));
+    memset(ip, 0, 34 * sizeof(int));
     ip[0]=0;
 
     memset(pcmL, 0, sizeof(pcmL));
@@ -126,7 +126,7 @@ PCM::~PCM()
 #include <iostream>
 
 
-void PCM::addPCMfloat(const float *PCMdata, size_t samples)
+void PCM::addPCMfloat_mono(const float *PCMdata, size_t samples)
 {
     float a,sum=0,max=0;
     for (size_t i=0; i<samples; i++)
@@ -135,7 +135,7 @@ void PCM::addPCMfloat(const float *PCMdata, size_t samples)
         a=pcmL[j] = PCMdata[i];
         pcmR[j] = PCMdata[i];
         sum += fabs(a);
-        max = fmax(max,a);
+        max = fmax(max, fabs(a));
     }
     start = (start+samples)%maxsamples;
     newsamples += samples;
@@ -162,7 +162,7 @@ void PCM::addPCMfloat_2ch(const float *PCMdata, size_t count)
 }
 
 
-void PCM::addPCM16Data(const short* pcm_data, size_t samples)
+void PCM::addPCM16Data_2ch(const short* pcm_data, size_t samples)
 {
     float a, b, sum = 0, max = 0;
     for (size_t i = 0; i < samples; ++i)
@@ -171,7 +171,7 @@ void PCM::addPCM16Data(const short* pcm_data, size_t samples)
         a = pcmL[j] = (pcm_data[i * 2 + 0] / 16384.0f);
         b = pcmR[j] = (pcm_data[i * 2 + 1] / 16384.0f);
         sum += fabs(a) + fabs(b);
-        max = fmax(fmax(max, a), b);
+        max = fmax(fmax(max, fabs(a)), fabs(b));
     }
     start = (start + samples) % maxsamples;
     newsamples += samples;
@@ -179,7 +179,7 @@ void PCM::addPCM16Data(const short* pcm_data, size_t samples)
 }
 
 
-void PCM::addPCM16(const short PCMdata[2][512])
+void PCM::addPCM16_2ch(const short PCMdata[2][512])
 {
     const int samples=512;
     float a,b,sum=0,max=0;
@@ -189,7 +189,7 @@ void PCM::addPCM16(const short PCMdata[2][512])
         a=pcmL[j]=(PCMdata[0][i]/16384.0);
         b=pcmR[j]=(PCMdata[1][i]/16384.0);
         sum += fabs(a) + fabs(b);
-        max = fmax(fmax(max,a),b);
+        max = fmax(fmax(max, fabs(a)), fabs(b));
     }
 	start = (start+samples) % maxsamples;
     newsamples += samples;
@@ -197,7 +197,7 @@ void PCM::addPCM16(const short PCMdata[2][512])
 }
 
 
-void PCM::addPCM8(const unsigned char PCMdata[2][1024])
+void PCM::addPCM8_2ch(const unsigned char PCMdata[2][1024])
 {
     const int samples=1024;
     float a,b,sum=0,max=0;
@@ -207,7 +207,7 @@ void PCM::addPCM8(const unsigned char PCMdata[2][1024])
         a=pcmL[j]=(((float)PCMdata[0][i] - 128.0) / 64 );
         b=pcmR[j]=(((float)PCMdata[1][i] - 128.0) / 64 );
         sum += fabs(a) + fabs(b);
-        max = fmax(fmax(max,a),b);
+        max = fmax(fmax(max, fabs(a)), fabs(b));
     }
     start = (start + samples) % maxsamples;
     newsamples += samples;
@@ -215,7 +215,7 @@ void PCM::addPCM8(const unsigned char PCMdata[2][1024])
 }
 
 
-void PCM::addPCM8_512(const unsigned char PCMdata[2][512])
+void PCM::addPCM8_512_2ch(const unsigned char PCMdata[2][512])
 {
     const size_t samples=512;
     float a,b,sum=0,max=0;
@@ -225,7 +225,7 @@ void PCM::addPCM8_512(const unsigned char PCMdata[2][512])
         a=pcmL[j]=(((float)PCMdata[0][i] - 128.0 ) / 64 );
         b=pcmR[j]=(((float)PCMdata[1][i] - 128.0 ) / 64 );
         sum += fabs(a) + fabs(b);
-        max = fmax(fmax(max,a),b);
+        max = fmax(fmax(max, fabs(a)), fabs(b));
     }
     start = (start + samples) % maxsamples;
     newsamples += samples;
@@ -316,7 +316,7 @@ void PCM::_getSpectrum(float *data, CHANNEL channel, size_t samples, float smoot
         for (size_t i = 0; i < count; i++)
             data[i] = spectrum[i];
         for (size_t i = count; i < samples; i++)
-            data[0] = 0;
+            data[i] = 0;
     }
     else
     {
