@@ -16,6 +16,7 @@
 #include "PCM.hpp"
 #include "Renderer.h"
 #include "MidiMix.h"
+#include "beat_data.h"
 
 volatile sig_atomic_t terminate = 0;
 
@@ -286,7 +287,6 @@ int main(int argc, char *argv[])
         next_frame_time += frame_duration;
 
         beatDetect.detectFromSamples();
-        //fprintf(stderr, "%f %f\n", beatDetect.vol_history, beatDetect.bg_fadein);
 
         if (beatDetectOnly)
         {
@@ -294,17 +294,58 @@ int main(int argc, char *argv[])
         }
         else
         {
-            // shim between projectM class and shared Patterns code
+            // Switch to background music after 2 seconds of silence; resume live on audio return.
+            const float SILENCE_THRESHOLD = 0.1f;
+            const int SILENCE_TRIGGER_FRAMES = 60;
+            static int silenceFrames = 0;
+            static unsigned bgIndex = 0;
+            static float bgBassAtt = 1.0f, bgMidAtt = 1.0f, bgTrebAtt = 1.0f;
+
+            if (beatDetect.vol < SILENCE_THRESHOLD)
+                silenceFrames = std::min(silenceFrames + 1, SILENCE_TRIGGER_FRAMES + 1);
+            else
+                silenceFrames = 0;
+
             Spectrum spectrum;
-            spectrum.bass = beatDetect.bass;
-            spectrum.bass_att = beatDetect.bass_att;
-            spectrum.mid = beatDetect.mid;
-            spectrum.mid_att = beatDetect.mid_att;
-            spectrum.treb = beatDetect.treb;
-            spectrum.treb_att = beatDetect.treb_att;
-            spectrum.vol = beatDetect.vol;
+            if (silenceFrames > SILENCE_TRIGGER_FRAMES)
+            {
+                float *bg = backgroundMusic[bgIndex % backgroundMusicSize];
+                bgIndex++;
+                bgBassAtt = 0.6f * bgBassAtt + 0.4f * bg[0];
+                bgMidAtt  = 0.6f * bgMidAtt  + 0.4f * bg[1];
+                bgTrebAtt = 0.6f * bgTrebAtt + 0.4f * bg[2];
+                spectrum.bass     = bg[0];
+                spectrum.mid      = bg[1];
+                spectrum.treb     = bg[2];
+                spectrum.vol      = bg[3];
+                spectrum.bass_att = bgBassAtt;
+                spectrum.mid_att  = bgMidAtt;
+                spectrum.treb_att = bgTrebAtt;
+            }
+            else
+            {
+                spectrum.bass     = beatDetect.bass;
+                spectrum.bass_att = beatDetect.bass_att;
+                spectrum.mid      = beatDetect.mid;
+                spectrum.mid_att  = beatDetect.mid_att;
+                spectrum.treb     = beatDetect.treb;
+                spectrum.treb_att = beatDetect.treb_att;
+                spectrum.vol      = beatDetect.vol;
+            }
 
             renderer->renderFrame((float)time, &spectrum, ledData, 3*IMAGE_SIZE);
+
+            static char lastPatternName[128] = "";
+            static bool lastWasInternal = false;
+            const char *patternName = renderer->getPatternName();
+            bool isInternal = (silenceFrames > SILENCE_TRIGGER_FRAMES);
+            if (strcmp(patternName, lastPatternName) != 0 || isInternal != lastWasInternal)
+            {
+                printf("#%s (%s)\n", patternName, isInternal ? "internal" : "external");
+                fflush(stdout);
+                snprintf(lastPatternName, sizeof(lastPatternName), "%s", patternName);
+                lastWasInternal = isInternal;
+            }
 
             uint8_t rgbData[3*IMAGE_SIZE];
             float maxBrightness = 1.0f;

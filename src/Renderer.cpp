@@ -109,6 +109,11 @@ private:
 
 public:
 
+    const char* getPatternName() const override
+    {
+        return currentPattern ? currentPattern->name() : "";
+    }
+
     void renderFrame(float current_time, const Spectrum *beatDetect, float ledBuffer[], size_t bufferLen) override
     {
         mybeat.update(current_time, 30, beatDetect);

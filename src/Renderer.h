@@ -35,6 +35,7 @@ struct Spectrum
 struct Renderer
 {
     virtual void renderFrame(float time, const Spectrum *spectrum, float buffer[], size_t size) = 0;
+    virtual const char* getPatternName() const = 0;
 };
 
 extern Renderer *createRenderer();
