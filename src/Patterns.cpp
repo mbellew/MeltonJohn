@@ -143,8 +143,6 @@ public:
         ctx.cx = cx.next(ctx.time);
 
         ctx.sx = 0.99f - 0.1f * ctx.bass;
-        ctx.sx = 0.99f - 0.1f * ctx.bass;
-        ctx.sx = 0.99f - 0.1f * ctx.bass;
         //fprintf(stderr,"%lf\n", ctx.sx);
     }
 
@@ -161,10 +159,10 @@ public:
 
 class GreenFlash : public AbstractPattern
 {
-    bool option1, option2, wipe, option_set;
+    bool option1, option2, option_set;
 public:
     GreenFlash() : AbstractPattern((const char *) "green flash"),
-        option1(false), option2(false), wipe(false), option_set(false)
+        option1(false), option2(false), option_set(false)
     {}
 
     GreenFlash(bool opt1, bool opt2) : GreenFlash()
@@ -189,8 +187,6 @@ public:
 
     void per_frame(PatternContext &ctx) override
     {
-        if (ctx.beat)
-            wipe = !wipe;
     }
 
     void draw(PatternContext &ctx, Image &image) override

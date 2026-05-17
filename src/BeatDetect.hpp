@@ -40,29 +40,45 @@
 // the actual time represented in the history depends on FPS
 #define BEAT_HISTORY_LENGTH 80
 
+/**
+ * Spectrum analyser: converts raw FFT bins into per-band energy ratios.
+ *
+ * Each call to detectFromSamples() pulls the latest FFT data from a PCM
+ * object, sums energy in three frequency bands (bass / mid / treb), and
+ * expresses each band as @c instant/history — the ratio of the current
+ * frame's energy to an 80-frame rolling average.  This adaptive
+ * normalisation means the output is largely independent of playback volume.
+ *
+ * Output fields are populated on the class directly (bass, mid, treb, vol
+ * and their @c *_att smoothed variants) and should be copied into a Spectrum
+ * struct before being passed to the renderer.
+ *
+ * @note  This class measures energy levels, not rhythmic events.  Beat
+ *        timing and tempo estimation are handled by the BeatTracker layer
+ *        in Renderer.cpp.
+ */
 class BeatDetect
 {
 	public:
-        // Does this really belong here? maybe belongs on projectM.Settings?
         float beatSensitivity;
 
-        float treb ;
-		float mid ;
-		float bass ;
-		float vol_old ;
+        float treb;      ///< High-frequency energy ratio this frame
+        float mid;       ///< Mid-frequency energy ratio this frame
+        float bass;      ///< Low-frequency energy ratio this frame
+        float vol_old;   ///< Overall loudness ratio from the previous frame
 
-		float treb_att ;
-		float mid_att ;
-		float bass_att ;
-		float vol;
-        float vol_att ;
+        float treb_att;  ///< Exponentially smoothed treb (α = 0.4)
+        float mid_att;   ///< Exponentially smoothed mid  (α = 0.4)
+        float bass_att;  ///< Exponentially smoothed bass (α = 0.4)
+        float vol;       ///< Overall loudness ratio this frame
+        float vol_att;   ///< Exponentially smoothed vol  (α = 0.4)
 
 		PCM *pcm;
 
-		/** Methods */
 		explicit BeatDetect(PCM *pcm, float sampleRate = 44100.0f);
 		~BeatDetect();
 		void reset();
+        /// Pull the latest FFT data from @c pcm and update all public fields.
 		void detectFromSamples();
 		void getBeatVals( float samplerate, unsigned fft_length, float *vdataL, float *vdataR );
 

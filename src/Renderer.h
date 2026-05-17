@@ -20,21 +20,42 @@
 #define GREEN_CHANNEL 2
 
 
+/**
+ * Audio spectrum snapshot delivered to Renderer::renderFrame() each frame.
+ *
+ * All values are dimensionless ratios: instant band energy divided by a
+ * rolling average over the last ~80 frames (~2.7 s at 30 fps).  A value of
+ * 1.0 means current energy equals the recent average; 2.0 means twice the
+ * average.  Values are capped at 100 but rarely exceed 3–5 in practice.
+ *
+ * The @c *_att ("attenuated") variants are exponentially smoothed (α = 0.4)
+ * versions of the raw values, useful as slow-moving envelope followers.
+ */
 struct Spectrum
 {
-    float bass;
-    float mid;
-    float treb;
-    float bass_att;
-    float mid_att;
-    float treb_att;
-    float vol;
+    float bass;      ///< Low-frequency energy ratio  (roughly 0–500 Hz)
+    float mid;       ///< Mid-frequency energy ratio  (roughly 500–4000 Hz)
+    float treb;      ///< High-frequency energy ratio (roughly 4000 Hz–Nyquist)
+    float bass_att;  ///< Smoothed bass
+    float mid_att;   ///< Smoothed mid
+    float treb_att;  ///< Smoothed treb
+    float vol;       ///< Overall loudness ratio (bin-count-normalized mean of the three bands)
 };
 
 
+/**
+ * Abstract interface for the LED pattern renderer.
+ *
+ * Each call to renderFrame() consumes one Spectrum snapshot and writes
+ * normalized RGB floats [0, 1] into @p buffer (3 × IMAGE_SIZE floats,
+ * interleaved R G B per pixel).  The implementation handles pattern
+ * selection, beat-driven transitions, and per-frame animation.
+ */
 struct Renderer
 {
+    /// Render one frame into @p buffer (3 × IMAGE_SIZE floats, RGB interleaved).
     virtual void renderFrame(float time, const Spectrum *spectrum, float buffer[], size_t size) = 0;
+    /// Name of the currently active pattern, or "" before the first frame.
     virtual const char* getPatternName() const = 0;
 };
 

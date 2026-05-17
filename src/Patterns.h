@@ -53,7 +53,7 @@ inline float MAX3(float a, float b, float c)
     return MAX2(a, MAX2(b, c));
 }
 
-inline int MIN3(int a, int b)
+inline int MIN2(int a, int b)
 {
     return a < b ? a : b;
 }
@@ -550,11 +550,6 @@ public:
         return c;
     }
 
-    Color next(size_t t) const
-    {
-        return colors[t % count];
-    }
-
     Color get(size_t t) const
     {
         return colors[t % count];
@@ -687,7 +682,7 @@ public:
         f = f - i;
         if (i <= 0)
             return map[0];
-        if (i + 1 >= IMAGE_SIZE - 1)
+        if (i + 1 >= IMAGE_SIZE)
             return map[IMAGE_SIZE - 1];
         Color c(map[i], map[i + 1], f);
         return c;
