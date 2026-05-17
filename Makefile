@@ -1,14 +1,17 @@
 build: MeltonJohn MeltonJohn_debug
 
+PULSE_CFLAGS := $(shell pkg-config --cflags libpulse-simple 2>/dev/null)
+PULSE_LIBS   := $(shell pkg-config --libs   libpulse-simple 2>/dev/null || echo -lpulse -lpulse-simple)
+
 MeltonJohn: src/*.cpp src/*.h src/*.hpp
-	g++ -Wall -std=c++11 -ggdb -O3 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
-#	g++ -Wall -Werror -std=c++11 -ggdb -O3 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn
+	g++ -Wall -std=c++11 -ggdb -O3 $(PULSE_CFLAGS) src/*.cpp -lm -lstdc++ $(PULSE_LIBS) -o MeltonJohn
 
 MeltonJohn_debug: src/*.cpp src/*.h src/*.hpp
-	g++ -Wall -std=c++11 -ggdb -Og -O0 src/*.cpp -lm -lstdc++ -lpulse -lpulse-simple -o MeltonJohn_debug
+	g++ -Wall -std=c++11 -ggdb -Og -O0 $(PULSE_CFLAGS) src/*.cpp -lm -lstdc++ $(PULSE_LIBS) -o MeltonJohn_debug
 
 run: MeltonJohn
-	./MeltonJohn | python3 viewer.py
+	pulseaudio --daemonize=yes || true
+	./MeltonJohn | .venv/bin/python viewer.py
 
 /etc/systemd/system/multi-user.target.wants/RESET.service:
 	sudo systemctl enable $(shell pwd)/systemd/RESET.service
@@ -25,7 +28,7 @@ install: services
 
 config:
 	sudo apt-get install build-essential g++-multilib libpulse-dev pavucontrol pulseaudio python3 python3-pip
-	python3 -m pip install pygame
+	.venv/bin/pip install pygame
 
 
 defines:

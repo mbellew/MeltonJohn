@@ -166,10 +166,7 @@ int main(int argc, char *argv[])
     FILE *output = stdout;
 
     // handle SIGTERM to make running as a service work better
-    struct sigaction action = {nullptr};
-    memset(&action, 0, sizeof(struct sigaction));
-    action.sa_handler = term;
-    sigaction(SIGTERM, &action, nullptr);
+    signal(SIGTERM, term);
 
     FORMAT format = OLA;
 
