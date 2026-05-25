@@ -4,24 +4,25 @@
 
 ```sh
 arduino-cli compile \
-  --fqbn STMicroelectronics:stm32:GenH7:pnum=DAISY_SEED \
+  --fqbn STMicroelectronics:stm32:GenH7:pnum=DAISY_SEED,usb=CDCgen \
   --libraries /Users/matthew/Documents/Arduino/libraries \
   /Users/matthew/Projects/MeltonJohn/Daisy/DaisyMelton
 ```
 
-Upload (once port is known):
+Upload via USB DFU bootloader (hold BOOT, press RESET, then run):
 ```sh
-arduino-cli upload \
-  --fqbn STMicroelectronics:stm32:GenH7:pnum=DAISY_SEED \
-  --port /dev/cu.usbmodemXXXX \
-  /Users/matthew/Projects/MeltonJohn/Daisy/DaisyMelton
+dfu-util -d 0483:df11 -a 0 -s 0x08000000:leave \
+  -D /Users/matthew/Projects/MeltonJohn/Daisy/DaisyMelton/build/DaisyMelton.ino.bin
 ```
+
+Note: `arduino-cli upload` does NOT work on macOS without STM32CubeProgrammer installed —
+the STM32 Arduino core's DFU method requires it. Use dfu-util directly instead.
 
 ## Board setup
 
 - Board package: `STMicroelectronics:stm32` (installed via `https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json`)
 - DaisyDuino is a **library** (not a board package) — installed via Library Manager
-- FQBN: `STMicroelectronics:stm32:GenH7:pnum=DAISY_SEED`
+- FQBN: `STMicroelectronics:stm32:GenH7:pnum=DAISY_SEED,usb=CDCgen`
 
 ## Audio / FFT pipeline
 

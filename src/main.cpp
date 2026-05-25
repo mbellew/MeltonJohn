@@ -295,13 +295,17 @@ int main(int argc, char *argv[])
         else
         {
             // Switch to background music after 2 seconds of silence; resume live on audio return.
-            const float SILENCE_THRESHOLD = 0.1f;
-            const int SILENCE_TRIGGER_FRAMES = 60;
+            const float SILENCE_THRESHOLD = 1.5f;
+            const float SILENCE_HYSTERESIS = 0.1f;
+            const int SILENCE_TRIGGER_FRAMES = 120;
             static int silenceFrames = 0;
             static unsigned bgIndex = 0;
             static float bgBassAtt = 1.0f, bgMidAtt = 1.0f, bgTrebAtt = 1.0f;
 
-            if (beatDetect.vol < SILENCE_THRESHOLD)
+            bool inSilence = silenceFrames > SILENCE_TRIGGER_FRAMES;
+            float threshold = SILENCE_THRESHOLD * (inSilence ? 1.0f + SILENCE_HYSTERESIS
+                                                              : 1.0f - SILENCE_HYSTERESIS);
+            if (beatDetect.vol < threshold)
                 silenceFrames = std::min(silenceFrames + 1, SILENCE_TRIGGER_FRAMES + 1);
             else
                 silenceFrames = 0;
@@ -334,6 +338,12 @@ int main(int argc, char *argv[])
             }
 
             renderer->renderFrame((float)time, &spectrum, ledData, 3*IMAGE_SIZE);
+
+            if (renderer->getBeat())
+            {
+                printf("#!\n");
+                fflush(stdout);
+            }
 
             static char lastPatternName[128] = "";
             static bool lastWasInternal = false;

@@ -166,12 +166,9 @@ static DaisySpectrumAnalyzer daisySound;
 SpectrumAnalyzer *sound         = &daisySound;
 Renderer         *renderPattern = createRenderer();
 
-// TODO: validate pin numbers against the Daisy Patch schematic before enabling.
-//       The numbers below were copied from a Daisy Field example and are likely wrong.
-//       Also confirm the OLED controller: SSD1309 vs SSD1306 have different init sequences.
-//       Consider switching to U8G2_..._HW_SPI once the pins are confirmed.
+// Pins confirmed from DaisyDuino Patch/Oled example.
 U8G2_SSD1309_128X64_NONAME2_F_4W_SW_SPI
-    oled(U8G2_R0, /*clk*/8, /*data*/10, /*cs*/7, /*dc*/9);
+    oled(U8G2_R0, /*clk*/8, /*data*/10, /*cs*/7, /*dc*/9, /*reset*/30);
 
 
 // ─── Entry points (called from DaisyMelton.ino) ───────────────────────────────
@@ -191,12 +188,11 @@ void setup_daisy()
     // Initialise DMX output (RenderMyDMX on Serial1, defined in DaisyMelton.ino).
     output->begin();
 
-    // TODO: uncomment once OLED wiring is validated on hardware.
-    // oled.begin();
-    // oled.clearBuffer();
-    // oled.setFont(u8g2_font_inb16_mf);
-    // oled.drawStr(10, 40, "melton");
-    // oled.sendBuffer();
+    Serial.begin(115200);
+
+    oled.setFont(u8g2_font_6x10_tf);
+    oled.setFontMode(1);
+    oled.begin();
 }
 
 
@@ -212,6 +208,18 @@ void loop_daisy()
     renderPattern->renderFrame(millis() / 1000.0f, &spectrum, f32values, IMAGE_SIZE * 3);
     mapToDisplay(f32values, rgbValues, IMAGE_SIZE * 3);
     output->write(rgbValues, IMAGE_SIZE);
+
+    LOG_print("vol: ");  LOG_println(spectrum.vol);
+
+    // VU meter: vol = bass + mid + treb, auto-leveled to ~4.5 average.
+    // Map [0, 9] → full bar width so average signal sits at ~50%.
+    int bar_w = (int)(fminf(spectrum.vol / 9.0f, 1.0f) * 128.0f);
+    oled.clearBuffer();
+    oled.drawStr(0, 10, "VU");
+    oled.drawFrame(0, 18, 128, 28);
+    if (bar_w > 0)
+        oled.drawBox(0, 18, bar_w, 28);
+    oled.sendBuffer();
 }
 
 

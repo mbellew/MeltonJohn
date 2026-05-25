@@ -1,2 +1,8 @@
-.idea 
-cmake-build-debug 
+.idea
+cmake-build-debug
+.DS_Store
+.claude/
+MeltonJohn
+MeltonJohn.dSYM/
+MeltonJohn_debug
+MeltonJohn_debug.dSYM/ 

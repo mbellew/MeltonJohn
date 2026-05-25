@@ -57,6 +57,8 @@ struct Renderer
     virtual void renderFrame(float time, const Spectrum *spectrum, float buffer[], size_t size) = 0;
     /// Name of the currently active pattern, or "" before the first frame.
     virtual const char* getPatternName() const = 0;
+    /// True for exactly one frame when a beat is detected or predicted.
+    virtual bool getBeat() const = 0;
 };
 
 extern Renderer *createRenderer();

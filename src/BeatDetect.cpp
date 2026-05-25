@@ -43,7 +43,7 @@ BeatDetect::BeatDetect(PCM *_pcm, float sampleRate)
     this->sampleRate=sampleRate;
 
     this->vol_instant=0;
-    this->vol_history=0;
+    this->vol_history=0.01;
     for (unsigned y=0;y<BEAT_HISTORY_LENGTH;y++)
         this->vol_buffer[y]=0;
 
@@ -152,13 +152,15 @@ void BeatDetect::getBeatVals( float samplerate, unsigned fft_length, float *vdat
                  + treb_instant / fmax(1.0f, treb_bins)) / 3.0f;
     vol_history -= (vol_buffer[beat_buffer_pos])* (1.0/BEAT_HISTORY_LENGTH);
     vol_buffer[beat_buffer_pos] = vol_instant;
-    vol_history += vol_instant * (1.0/BEAT_HISTORY_LENGTH);
+    // Floor prevents vol_history from adapting down to ADC noise level, which
+    // would make the ratio unreliable during silence and after long quiet periods.
+    vol_history += fmax(vol_instant, 0.1f) * (1.0/BEAT_HISTORY_LENGTH);
 
 //    fprintf(stderr, "%6.3f %6.2f %6.3f\n", bass_history/vol_history, mid_history/vol_history, treb_history/vol_history);
-    bass = bass_instant / fmax(0.0001, bass_history);
-    mid  = mid_instant  / fmax(0.0001, mid_history);
-    treb = treb_instant / fmax(0.0001, treb_history);
-    vol  = vol_instant  / fmax(0.0001, vol_history);
+    bass = bass_instant / fmax(0.01f, bass_history);
+    mid  = mid_instant  / fmax(0.01f, mid_history);
+    treb = treb_instant / fmax(0.01F, treb_history);
+    vol  = vol_instant  / fmax(0.01f, vol_history);
 
     if ( std::isnan( treb ) ) {
         treb = 0.0;

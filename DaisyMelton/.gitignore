@@ -1,3 +1,4 @@
+build/
 BeatDetect.cpp
 BeatDetect.hpp
 beat_data.cpp

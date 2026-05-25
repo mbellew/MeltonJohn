@@ -130,7 +130,7 @@ public:
  */
 class AutocorBeatTracker : public BeatTracker
 {
-    static const int BUF = 150;
+    enum { BUF = 150 };
     float buf[BUF] = {};
     int head = 0;
     float anchor = -1.0f;
@@ -150,7 +150,7 @@ public:
         if (++ticksSinceCorr >= 15)
         {
             ticksSinceCorr = 0;
-            int n = std::min(head, BUF);
+            int n = std::min(head, (int)BUF);
             int lagMin = std::max(2, (int)(fps / 3.0f));      // 180 BPM upper bound
             int lagMax = std::min(n / 2, (int)(fps + 0.5f));  // 60 BPM lower bound
 
@@ -251,6 +251,11 @@ public:
     const char* getPatternName() const override
     {
         return currentPattern ? currentPattern->name() : "";
+    }
+
+    bool getBeat() const override
+    {
+        return tracker->beat;
     }
 
     void renderFrame(float current_time, const Spectrum *beatDetect, float ledBuffer[], size_t bufferLen) override
