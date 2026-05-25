@@ -9,9 +9,10 @@ Controls 20 RGB lights reactively to audio (bass/mid/treble spectrum analysis).
 ```
 MeltonJohn/
   Teensy/   — read-only reference (original Teensy/Linux implementation, do not modify)
-  Daisy/    — working port to Electro-Smith Daisy Patch hardware
+  Daisy/    — Daisy Patch firmware, plus Linux/macOS visualiser
     src/                  — shared platform-agnostic source (canonical)
-    DaisyMelton/          — Daisy Patch Arduino sketch (build target)
+    DaisyMelton/          — Daisy Patch firmware, native libDaisy + Makefile (build target)
+    DesktopApp/           — Linux/macOS PulseAudio build (build target); produces ./MeltonJohn
     TeensyMelton/         — Teensy 4.0 Arduino sketch (build target)
   .vscode/
     tasks.json            — build tasks for DaisyMelton and TeensyMelton
@@ -32,29 +33,31 @@ MeltonJohn/
 - `OUTPUT_MYDMX 1` — DMX output via Serial1 + MAX3485
 - `IMAGE_SIZE 20`, `FFT_SIZE 256`, `DAISY_SAMPLE_RATE_HZ 8000`
 
-## Platform layer (`DaisyMelton/daisy.cpp`)
+## Platform layer (`DaisyMelton/main.cpp`)
 
-- `AudioCallback` — DaisyDuino ISR, writes stereo floats into circular buffer
+- `AudioCallback` — libDaisy DMA callback, writes stereo floats into circular buffer
 - `DaisySpectrumAnalyzer::next()` — snapshots circular buffer, applies Hann window, runs dual `rdft()`, fills `Spectrum`
-- `setup_daisy()` / `loop_daisy()` — entry points called from `DaisyMelton.ino`
+- `int main()` — initialises `DaisyPatch`, audio, DMX UART; runs the render loop
+- DMX-512 output on USART_1 (MIDI TRS pins D13/D14) via libDaisy `UartHandler` + external MAX3485
+- VU meter on the built-in OLED via `patch.display`
 
-## Shared files (manual copy pattern)
+## Shared files
 
-Arduino IDE cannot include files from subdirectories. Files in `src/` are **manually copied** into each sketch directory. When `src/` changes, re-copy:
+`src/` contains only platform-agnostic sources: `Patterns.{cpp,h}`, `Renderer.{cpp,h}`, `MultiLayerPatterns.cpp`, `fftsg.{cpp,hpp}`, `beat_data.{cpp,h}`. Everything platform-specific lives in the target dir alongside its `Makefile`.
 
-```sh
-# DaisyMelton
-cp Daisy/src/Patterns.{h,cpp} Daisy/src/Renderer.{h,cpp} \
-   Daisy/src/MultiLayerPatterns.cpp \
-   Daisy/src/fftsg.{hpp,cpp} \
-   Daisy/DaisyMelton/
+Each platform Makefile pulls the shared sources in directly:
+- `DaisyMelton/Makefile` lists `../src/Patterns.cpp` etc. (libDaisy's core Makefile uses `vpath`, so `.o` files land flat in `DaisyMelton/build/`)
+- `DesktopApp/Makefile` builds `*.cpp ../src/*.cpp` together
+- Both pass `-I. -I../src` so `#include "config.h"` resolves to the *local* (platform-specific) `config.h`, and shared headers from `../src/` are findable
 
-# TeensyMelton — see TeensyMelton/TEENSY.md for the sync command and caveats
-```
+TeensyMelton still uses the Arduino-CLI manual-copy pattern (see `TeensyMelton/TEENSY.md`).
+
+Desktop-only sources (`BeatDetect`, `MidiMix`, `MidiPatterns`, `PCM`, `main.cpp`, `config.h`) live in `DesktopApp/`, not `src/`.
 
 ## Build
 
-- **DaisyMelton** — see `DaisyMelton/DAISY.md`
+- **DaisyMelton** (Daisy Patch firmware) — see `DaisyMelton/DAISY.md`
+- **DesktopApp** (Linux/macOS visualiser) — `cd DesktopApp && make` → produces `MeltonJohn` and `MeltonJohn_debug`
 - **TeensyMelton** — see `TeensyMelton/TEENSY.md`
 
 VS Code tasks: **Cmd+Shift+B** runs "Compile TeensyMelton" by default.

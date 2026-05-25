@@ -1,0 +1,53 @@
+# Desktop (Linux/macOS) build of the MeltonJohn visualiser.
+#
+# Reads audio from PulseAudio and prints framebuffers on stdout for the
+# pyglet viewer.  See ../README.md for end-to-end usage.
+
+build: MeltonJohn MeltonJohn_debug
+
+PULSE_CFLAGS := $(shell pkg-config --cflags libpulse-simple 2>/dev/null)
+PULSE_LIBS   := $(shell pkg-config --libs   libpulse-simple 2>/dev/null || echo -lpulse -lpulse-simple)
+
+# Desktop-only sources live alongside this Makefile; platform-agnostic
+# sources stay in ../src/ and are compiled in-place.
+SOURCES = *.cpp ../src/*.cpp
+HEADERS = *.h *.hpp ../src/*.h ../src/*.hpp
+
+CXXFLAGS_COMMON = -Wall -std=c++11 -ggdb -I. -I../src $(PULSE_CFLAGS)
+LIBS = -lm -lstdc++ $(PULSE_LIBS)
+
+MeltonJohn: $(SOURCES) $(HEADERS)
+	g++ $(CXXFLAGS_COMMON) -O3 $(SOURCES) $(LIBS) -o MeltonJohn
+
+MeltonJohn_debug: $(SOURCES) $(HEADERS)
+	g++ $(CXXFLAGS_COMMON) -Og -O0 $(SOURCES) $(LIBS) -o MeltonJohn_debug
+
+run: MeltonJohn
+	pulseaudio --daemonize=yes || true
+	./MeltonJohn | ../.venv/bin/python viewer.py
+
+# Systemd install paths still resolve to /etc/...; $(shell pwd) is now
+# Daisy/DesktopApp/, so the unit files load the binary from here.
+/etc/systemd/system/multi-user.target.wants/RESET.service:
+	sudo systemctl enable $(shell pwd)/../systemd/RESET.service
+
+/etc/systemd/system/multi-user.target.wants/BRPL.service:
+	sudo systemctl enable $(shell pwd)/../systemd/BRPL.service
+
+services: \
+	/etc/systemd/system/multi-user.target.wants/RESET.service \
+	/etc/systemd/system/multi-user.target.wants/BRPL.service
+
+install: services
+	sudo cp MeltonJohn ../systemd/BRPL ../systemd/RESET /usr/local/bin/
+
+config:
+	sudo apt-get install build-essential g++-multilib libpulse-dev pavucontrol pulseaudio python3 python3-pip
+	../.venv/bin/pip install pygame
+
+defines:
+	gcc -E -dM config.h
+
+clean:
+	rm -f MeltonJohn MeltonJohn_debug
+	rm -rf MeltonJohn.dSYM MeltonJohn_debug.dSYM

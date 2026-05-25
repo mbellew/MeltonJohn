@@ -1,58 +1,103 @@
-# DaisyMelton — Daisy Patch build notes
+# DaisyMelton — native libDaisy build
 
-## Compile command
+Bare-metal firmware for the Electro-Smith Daisy Patch. No Arduino, no
+DaisyDuino — straight `arm-none-eabi-gcc` + libDaisy via `make`.
+
+## Prerequisites
+
+| Tool | Location | Notes |
+|------|----------|-------|
+| `arm-none-eabi-gcc` | `~/Library/Arduino15/packages/STMicroelectronics/tools/xpack-arm-none-eabi-gcc/14.2.1-1.1/bin` | Reused from the STMicroelectronics Arduino package; the `Makefile` sets `GCC_PATH` to point at it. To use a different one (e.g. `brew install --cask gcc-arm-embedded`), override `GCC_PATH` on the make command line. |
+| `dfu-util` | `brew install dfu-util` | Already present. |
+| `make` | `/usr/bin/make` | System make works fine. |
+| `libDaisy` | `~/Projects/electrosmith/libDaisy` | One clone shared across Daisy projects; override `LIBDAISY_DIR` if you keep it elsewhere. |
+
+### One-time libDaisy install
 
 ```sh
-arduino-cli compile \
-  --fqbn STMicroelectronics:stm32:GenH7:pnum=DAISY_SEED,usb=CDCgen \
-  --libraries /Users/matthew/Documents/Arduino/libraries \
-  /Users/matthew/Projects/MeltonJohn/Daisy/DaisyMelton
+mkdir -p ~/Projects/electrosmith && cd ~/Projects/electrosmith
+git clone --recursive https://github.com/electro-smith/libDaisy.git
+cd libDaisy
+PATH="$HOME/Library/Arduino15/packages/STMicroelectronics/tools/xpack-arm-none-eabi-gcc/14.2.1-1.1/bin:$PATH" make
 ```
 
-Upload via USB DFU bootloader (hold BOOT, press RESET, then run):
+That builds `libDaisy/build/libdaisy.a`, which our `Makefile` links against.
+
+## Build
+
 ```sh
-dfu-util -d 0483:df11 -a 0 -s 0x08000000:leave \
-  -D /Users/matthew/Projects/MeltonJohn/Daisy/DaisyMelton/build/DaisyMelton.ino.bin
+cd Daisy/DaisyMelton
+make            # → build/DaisyMelton.{elf,bin,hex}
 ```
 
-Note: `arduino-cli upload` does NOT work on macOS without STM32CubeProgrammer installed —
-the STM32 Arduino core's DFU method requires it. Use dfu-util directly instead.
+Or VS Code: **Cmd+Shift+B** → "Compile DaisyMelton".
 
-## Board setup
+## Flash
 
-- Board package: `STMicroelectronics:stm32` (installed via `https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json`)
-- DaisyDuino is a **library** (not a board package) — installed via Library Manager
-- FQBN: `STMicroelectronics:stm32:GenH7:pnum=DAISY_SEED,usb=CDCgen`
+We target `APP_TYPE = BOOT_SRAM`: the firmware lives in QSPI external
+flash and gets copied into SRAM by the Electrosmith bootloader on every
+power-up. This gives ~480 KB of code budget instead of the 128 KB internal
+flash limit; the trade-off is a one-time bootloader install and a ~3 s
+delay at boot while the bootloader waits for a DFU connection.
 
-## Audio / FFT pipeline
+### One-time: install the bootloader
 
-- Sample rate: 8000 Hz (`AUDIO_SR_8K`)
-- FFT size: 256 points → 32 ms window, ~31.25 Hz/bin
-- Hop size: 128 samples → ~62 fps update rate
-- Library: `fftsg.cpp` (pure C rdft, already in project — avoids CMSIS-DSP linker issues)
-- Two channels processed independently, magnitudes summed (phase-safe)
-- Frequency bands:
-  - Bass: bins 1–8 → 31–250 Hz
-  - Mid: bins 9–21 → 281–656 Hz
-  - Treb: bins 22–80 → 688–2500 Hz
+Hold **BOOT**, tap **RESET** to enter the STM32 ROM bootloader, then:
 
-## Hardware TODOs (validate on real hardware before enabling)
+```sh
+make program-boot
+```
 
-- Confirm `DAISY_PATCH` is the correct enum for `DAISY.init()` — alternatives are `DAISY_PATCH_SM`, `DAISY_PATCH_INIT`
-- Confirm OLED is SSD1309 (not SSD1306) and pin numbers match schematic (currently: clk=8, data=10, cs=7, dc=9)
-- Confirm Serial1 maps to the MIDI TRS UART for DMX output
-- DMX requires external MAX3485 (3.3V RS-485 driver) on the MIDI TRS jack
-- Uncomment OLED init block in `setup_daisy()` once wiring confirmed
+This flashes the Electrosmith bootloader into internal flash.
 
-## Shared source files
+### Every time: flash the app
 
-These files are copied manually from `Daisy/src/` into this directory (Arduino IDE limitation — no subdirectory includes):
+After the bootloader is installed, every power-on/RESET spends ~3 s in
+the Electrosmith bootloader before jumping to the app. During that
+window:
 
-| File | Source |
-|------|--------|
-| `Patterns.h` / `Patterns.cpp` | `../src/` |
-| `Renderer.h` / `Renderer.cpp` | `../src/` |
-| `MultiLayerPatterns.cpp` | `../src/` |
-| `fftsg.hpp` / `fftsg.cpp` | `../src/` |
+```sh
+make program-dfu
+```
 
-When updating shared files, copy them again from `src/`. The Teensy copy in `/Teensy/` is read-only reference.
+flashes `build/DaisyMelton.bin` to QSPI. The bootloader then jumps into
+it. If `dfu-util` can't find the device, tap **RESET** and re-run the
+command quickly — you have ~3 s.
+
+> Both the stock STM32 ROM bootloader and the Electrosmith bootloader
+> enumerate as USB PID `0483:df11`, so you can't tell them apart from
+> `lsusb`. The difference: the Electrosmith bootloader exposes an extra
+> DFU alt-setting for QSPI flash. If `program-dfu` errors out with
+> *"Last page at 0x9006xxxx is not writeable"*, you're talking to the
+> stock ROM bootloader — run `program-boot` first.
+
+## Architecture quick-reference
+
+- **Audio**: 8 kHz stereo via the Patch's WM8731 codec (`SAI_8KHZ`).
+  `AudioCallback` writes into a power-of-2 circular buffer at interrupt
+  priority; the main loop snapshots and runs FFT at HOP_SIZE intervals.
+- **FFT**: 256-point real DFT (Ooura `fftsg` — pure C, no CMSIS-DSP
+  dependency). 32 ms window, ~31.25 Hz/bin, two channels processed
+  independently and magnitudes summed (phase-safe).
+- **Bands**: bass 31–250 Hz, mid 281–656 Hz, treb 688–2500 Hz.
+- **Renderer**: shared `Renderer.cpp` (also drives the Linux build).
+- **Output**: 20-channel DMX-512 on the MIDI TRS jack (`USART_1`,
+  pins D13/D14) through an external MAX3485. The DMX BREAK is produced
+  by re-initialising the UART at 100 kbaud 8E1 and sending a zero,
+  which holds the line low for ~100 µs.
+- **OLED**: built-in 128×64 SSD1309 (SPI), driven via `patch.display`.
+  Shows a vertical raw-level VU bar plus three per-band horizontal bars.
+
+## Files
+
+| File | Role |
+|------|------|
+| `Makefile` | Top-level build; sets `APP_TYPE = BOOT_SRAM` and includes `$(LIBDAISY_DIR)/core/Makefile`. |
+| `main.cpp` | `int main()`, audio callback, spectrum analyzer, DMX output, OLED VU meter. |
+| `config.h` | Platform/feature flags. Sets `PLATFORM_DAISY`, `IMAGE_SIZE=20`, FFT/band parameters. |
+| `pixeltypes.h` | Standalone `CRGB`/`CHSV` (FastLED is not available on Daisy). |
+| `Patterns.{h,cpp}`, `Renderer.{h,cpp}`, `MultiLayerPatterns.cpp`, `fftsg.{hpp,cpp}`, `beat_data.{h,cpp}` | Live only in `Daisy/src/` and are compiled in-place via `vpath` (no copy step). |
+
+Desktop-only sources (`BeatDetect`, `MidiMix`, `MidiPatterns`, `PCM`,
+plus the desktop `main.cpp` and `config.h`) live in `Daisy/DesktopApp/`
+— not visible to or referenced by this build at all.

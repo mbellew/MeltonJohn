@@ -1,6 +1,0 @@
-{
-  "sketch": "DaisyMelton.ino",
-  "board": "STMicroelectronics:stm32:GenH7:pnum=DAISY_SEED,usb=CDCgen",
-  "port": "/dev/cu.usbmodemXXXX",
-  "output": "build"
-}

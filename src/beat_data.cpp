@@ -1,5 +1,8 @@
-//const backgroundMusicSize;
-float backgroundMusic[][4] = 
+// const-qualified so the linker places the table in .rodata (and on the Daisy
+// in SRAM rather than DTCMRAM, where 114 KB of data would not fit).
+// `extern` is required because in C++ a namespace-scope `const` defaults to
+// internal linkage; without it the header's extern declaration goes unresolved.
+extern const float backgroundMusic[][4] =
 {
 {3.904832, 3.541754, 5.826416, 4.758396},
 {0.219811, 0.854579, 1.061042, 13.778322},
@@ -7129,4 +7132,4 @@ float backgroundMusic[][4] =
 {0.003446, 0.002360, 0.003122, 0.002787},
 {0.002307, 0.002693, 0.003351, 6.669702}
 };
-unsigned backgroundMusicSize = (sizeof backgroundMusic)  / (sizeof backgroundMusic[0]);
+extern const unsigned int backgroundMusicSize = (sizeof backgroundMusic) / (sizeof backgroundMusic[0]);
