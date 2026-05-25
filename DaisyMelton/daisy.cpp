@@ -24,6 +24,8 @@ using namespace daisysp;
 #endif
 
 
+static float g_raw_vol = 0.0f;  // per-frame raw energy, set by DaisySpectrumAnalyzer
+
 // ─── Abstract spectrum analyzer interface ─────────────────────────────────────
 
 class SpectrumAnalyzer
@@ -134,6 +136,7 @@ public:
         // Auto-level: normalise to running average so the visualiser responds
         // equally to quiet and loud sources.
         float level = fmaxf((bass + mid + treb) / 3.0f, 0.01f);
+        g_raw_vol   = level;   // pre-normalization energy for hardware level display
         vol_level   = (vol_level * 29.0f + level) / 30.0f;
         float inv   = 1.5f / vol_level;
         bass *= inv;
@@ -211,14 +214,39 @@ void loop_daisy()
 
     LOG_print("vol: ");  LOG_println(spectrum.vol);
 
-    // VU meter: vol = bass + mid + treb, auto-leveled to ~4.5 average.
-    // Map [0, 9] → full bar width so average signal sits at ~50%.
-    int bar_w = (int)(fminf(spectrum.vol / 9.0f, 1.0f) * 128.0f);
+    // Raw input-level VU bar: fast attack, slow release, auto-scaled to
+    // a slowly-decaying peak so the user can see relative hardware gain.
+    static float vu_smooth = 0.0f;
+    static float vu_peak   = 0.01f;
+    vu_smooth = (g_raw_vol > vu_smooth)
+                ? g_raw_vol * 0.4f + vu_smooth * 0.6f   // fast attack
+                : g_raw_vol * 0.02f + vu_smooth * 0.98f; // slow release
+    vu_peak = fmaxf(vu_peak * 0.999f, vu_smooth);        // peak decays over ~10 s
+    int vu_h = (int)(vu_smooth / vu_peak * 60.0f);       // 0..60 px
+
+    // Three-band VU meter. Each band is auto-leveled to ~1.5 average;
+    // map [0, 3.0] → full bar so average signal sits at ~50%.
+    static const char *labels[3] = { "B", "M", "H" };
+    float vals[3] = { spectrum.bass, spectrum.mid, spectrum.treb };
+
     oled.clearBuffer();
-    oled.drawStr(0, 10, "VU");
-    oled.drawFrame(0, 18, 128, 28);
-    if (bar_w > 0)
-        oled.drawBox(0, 18, bar_w, 28);
+
+    // Vertical raw-level bar (6px wide, fills from bottom)
+    oled.drawFrame(0, 0, 6, 64);
+    if (vu_h > 0)
+        oled.drawBox(0, 63 - vu_h, 6, vu_h);
+    // Target marker at 75% height
+    oled.drawHLine(0, 63 - 45, 6);
+
+    // Horizontal band bars shifted right of the vertical bar
+    for (int i = 0; i < 3; i++) {
+        int y     = i * 22;   // bar tops: 0, 22, 44  (bar=16px, gap=6px)
+        int bar_w = (int)(fminf(vals[i] / 4.0f, 1.0f) * 110.0f);
+        oled.drawStr(7, y + 12, labels[i]);
+        if (bar_w > 0)
+            oled.drawBox(13, y, bar_w, 16);
+    }
+
     oled.sendBuffer();
 }
 
