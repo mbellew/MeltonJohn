@@ -313,7 +313,7 @@ int main(int argc, char *argv[])
             Spectrum spectrum;
             if (silenceFrames > SILENCE_TRIGGER_FRAMES)
             {
-                float *bg = backgroundMusic[bgIndex % backgroundMusicSize];
+                const float *bg = backgroundMusic[bgIndex % backgroundMusicSize];
                 bgIndex++;
                 bgBassAtt = 0.6f * bgBassAtt + 0.4f * bg[0];
                 bgMidAtt  = 0.6f * bgMidAtt  + 0.4f * bg[1];
