@@ -26,6 +26,11 @@ run: MeltonJohn
 	pulseaudio --daemonize=yes || true
 	./MeltonJohn | ../.venv/bin/python viewer.py
 
+monitor: MeltonJohn
+	pulseaudio --daemonize=yes || true
+	./MeltonJohn "BlackHole_2ch.monitor" | ../.venv/bin/python viewer.py
+
+
 # Systemd install paths still resolve to /etc/...; $(shell pwd) is now
 # Daisy/DesktopApp/, so the unit files load the binary from here.
 /etc/systemd/system/multi-user.target.wants/RESET.service:

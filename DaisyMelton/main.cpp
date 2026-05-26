@@ -15,7 +15,7 @@
 #include "config.h"
 #include "Patterns.h"
 #include "Renderer.h"
-#include "fftsg.hpp"
+#include "SpectrumAnalyzer.h"
 #include "beat_data.h"
 
 #include <math.h>
@@ -40,7 +40,7 @@ static UartHandler dmx;
 // CIRC_LEN must be a power of 2 so wrap-around uses & instead of %.
 
 static constexpr uint32_t CIRC_LEN = FFT_SIZE * 2;
-static constexpr uint32_t HOP_SIZE = FFT_SIZE / 2;   // 50% overlap
+static constexpr uint32_t HOP_SIZE = FFT_SIZE;       // no overlap → ~31 fps @ 8 kHz
 
 static float             circBuf[2][CIRC_LEN];
 static volatile uint32_t g_writeIdx = 0;
@@ -63,95 +63,34 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
 
 
 // ─── Spectrum analyzer ────────────────────────────────────────────────────────
-// Two independent rdft's (one per channel) so stereo phase differences
-// cannot cause frequency cancellation — magnitudes are summed afterwards.
+// The actual FFT + per-band aggregation lives in src/SpectrumAnalyzer so the
+// desktop simulator can use the same code; here we just snapshot FFT_SIZE
+// samples per channel from the circular buffer once per HOP_SIZE and hand
+// them off.
 
-class DaisySpectrumAnalyzer
+static SpectrumAnalyzer *analyzer      = nullptr;
+static Renderer         *renderPattern = createRenderer();
+static uint32_t          lastFFTIdx    = 0;
+
+static bool nextSpectrum(Spectrum &s)
 {
-    float hannWindow[FFT_SIZE];
-    float fftWork[FFT_SIZE];
+    uint32_t current = g_writeIdx;
+    if ((current - lastFFTIdx) < HOP_SIZE)
+        return false;
+    lastFFTIdx = current;
 
-    // fftsg work arrays — ip[0]=0 triggers init on first rdft call.
-    int   fftIp[20]         = {};
-    float fftW[FFT_SIZE / 2] = {};
-
-    // Auto-level state — mirrors the Teensy SoundFFT approach.
-    float vol_level = 20.0f;
-    float att[3]    = {20.0f, 20.0f, 20.0f};
-
-    uint32_t lastFFTIdx = 0;
-
-    static float bandAvg(const float *mag, int lo, int hi)
+    static float chL[FFT_SIZE], chR[FFT_SIZE];
+    for (uint32_t i = 0; i < FFT_SIZE; i++)
     {
-        float sum = 0.0f;
-        for (int i = lo; i <= hi; i++)
-            sum += mag[i];
-        return sum / (float)(hi - lo + 1);
+        uint32_t idx = (uint32_t)(current - FFT_SIZE + i) & (CIRC_LEN - 1);
+        chL[i] = circBuf[0][idx];
+        chR[i] = circBuf[1][idx];
     }
 
-public:
-    void begin()
-    {
-        for (int i = 0; i < FFT_SIZE; i++)
-            hannWindow[i] = 0.5f * (1.0f - cosf(2.0f * (float)M_PI * i / (FFT_SIZE - 1)));
-    }
-
-    bool next(Spectrum &s)
-    {
-        uint32_t current = g_writeIdx;
-        if ((current - lastFFTIdx) < HOP_SIZE)
-            return false;
-        lastFFTIdx = current;
-
-        float mag[FFT_SIZE / 2] = {};
-
-        for (int ch = 0; ch < 2; ch++)
-        {
-            for (int i = 0; i < FFT_SIZE; i++)
-            {
-                uint32_t idx = (uint32_t)(current - FFT_SIZE + i) & (CIRC_LEN - 1);
-                fftWork[i]   = circBuf[ch][idx] * hannWindow[i];
-            }
-
-            rdft(FFT_SIZE, 1, fftWork, fftIp, fftW);
-
-            for (int k = 1; k < FFT_SIZE / 2; k++)
-            {
-                float re = fftWork[2 * k];
-                float im = fftWork[2 * k + 1];
-                mag[k] += sqrtf(re * re + im * im);
-            }
-        }
-
-        float bass = bandAvg(mag, BASS_BIN_LO, BASS_BIN_HI);
-        float mid  = bandAvg(mag, MID_BIN_LO,  MID_BIN_HI);
-        float treb = bandAvg(mag, TREB_BIN_LO, TREB_BIN_HI);
-
-        float level = fmaxf((bass + mid + treb) / 3.0f, 0.01f);
-        g_raw_vol   = level;
-        vol_level   = (vol_level * 29.0f + level) / 30.0f;
-        float inv   = 1.5f / vol_level;
-        bass *= inv;
-        mid  *= inv;
-        treb *= inv;
-
-        att[0] = (att[0] * 5.0f + bass) / 6.0f;
-        att[1] = (att[1] * 5.0f + mid)  / 6.0f;
-        att[2] = (att[2] * 5.0f + treb) / 6.0f;
-
-        s.bass     = bass;
-        s.mid      = mid;
-        s.treb     = treb;
-        s.bass_att = att[0];
-        s.mid_att  = att[1];
-        s.treb_att = att[2];
-        s.vol      = bass + mid + treb;
-        return true;
-    }
-};
-
-static DaisySpectrumAnalyzer daisySound;
-static Renderer            *renderPattern = createRenderer();
+    analyzer->analyze(chL, chR, s);
+    g_raw_vol = analyzer->getRawVol();
+    return true;
+}
 
 
 // ─── Silence detection / background-music fallback ────────────────────────────
@@ -350,7 +289,11 @@ int main(void)
     patch.Init();
     patch.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_8KHZ);
 
-    daisySound.begin();
+    // Effective frame rate is one analyze() call per HOP_SIZE new audio
+    // samples — passed into the analyzer so its EMA time-constants are
+    // converted to the right per-frame alphas.
+    float fps = (float)DAISY_SAMPLE_RATE_HZ / (float)HOP_SIZE;
+    analyzer  = new SpectrumAnalyzer(DAISY_SAMPLE_RATE_HZ, FFT_SIZE, fps);
     patch.StartAudio(AudioCallback);
 
     // USB CDC logger — appears as a serial device when the Daisy is plugged in.
@@ -374,7 +317,7 @@ int main(void)
 
     while (true)
     {
-        if (!daisySound.next(spectrum))
+        if (!nextSpectrum(spectrum))
             continue;
 
         // ── (a) audio / pattern / DMX block ──────────────────────────────────

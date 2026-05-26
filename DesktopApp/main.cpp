@@ -12,9 +12,9 @@
 #include <cmath>
 #include <assert.h>
 
-#include "BeatDetect.hpp"
 #include "PCM.hpp"
 #include "Renderer.h"
+#include "SpectrumAnalyzer.h"
 #include "MidiMix.h"
 #include "beat_data.h"
 
@@ -215,12 +215,20 @@ int main(int argc, char *argv[])
     /* The sample type to use */
     static const pa_sample_spec ss =
     {
-        .format = PA_SAMPLE_S16LE, // PA_SAMPLE_FLOAT32,
-        .rate = 44100,
+        .format = PA_SAMPLE_FLOAT32LE,
+        .rate = 48000,
         .channels = 2
     };
 
-    BeatDetect beatDetect(&pcm, (float)ss.rate);
+    // Shared FFT analyzer (same code path as DaisyMelton).  FFT_SIZE picked
+    // to give roughly the same per-frame window as the Daisy build
+    // (~21 ms at 48 kHz vs ~32 ms at 8 kHz/FFT 256) and to match the
+    // effective window of the prior BeatDetect (FFT_LENGTH=512 ×2 = 1024).
+    constexpr unsigned DESKTOP_FFT_SIZE = 1024;
+    constexpr float    DESKTOP_FPS      = 30.0f;
+    SpectrumAnalyzer analyzer(ss.rate, DESKTOP_FFT_SIZE, DESKTOP_FPS);
+    float analyzerSamplesL[DESKTOP_FFT_SIZE];
+    float analyzerSamplesR[DESKTOP_FFT_SIZE];
 
     int error;
     /* Create the recording stream */
@@ -233,6 +241,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "opened audio device: %s\n", devices.at(dev).c_str());
             break;
         }
+        fprintf(stderr, "failed to open %s: %s\n", devices.at(dev).c_str(), pa_strerror(error));
     }
     if (nullptr == s)
     {
@@ -286,16 +295,23 @@ int main(int argc, char *argv[])
         } while (time < next_frame_time);
         next_frame_time += frame_duration;
 
-        beatDetect.detectFromSamples();
+        pcm.getPCM(analyzerSamplesL, CHANNEL_L, DESKTOP_FFT_SIZE, 0.0f);
+        pcm.getPCM(analyzerSamplesR, CHANNEL_R, DESKTOP_FFT_SIZE, 0.0f);
+        Spectrum spectrum;
+        analyzer.analyze(analyzerSamplesL, analyzerSamplesR, spectrum);
 
         if (beatDetectOnly)
         {
-            printf("{%f, %f, %f, %f},\n", beatDetect.bass, beatDetect.mid, beatDetect.treb, beatDetect.vol);
+            printf("{%f, %f, %f, %f},\n", spectrum.bass, spectrum.mid, spectrum.treb, spectrum.vol);
         }
         else
         {
-            // Switch to background music after 2 seconds of silence; resume live on audio return.
-            const float SILENCE_THRESHOLD = 1.5f;
+            // Switch to background music after 2 seconds of silence; resume
+            // live on audio return.  Threshold is applied to the analyzer's
+            // pre-normalization mean band magnitude (same as Daisy's
+            // applyBackgroundIfSilent) so it doesn't drift with the
+            // auto-leveler.
+            const float SILENCE_THRESHOLD = 0.05f;
             const float SILENCE_HYSTERESIS = 0.1f;
             const int SILENCE_TRIGGER_FRAMES = 120;
             static int silenceFrames = 0;
@@ -305,12 +321,11 @@ int main(int argc, char *argv[])
             bool inSilence = silenceFrames > SILENCE_TRIGGER_FRAMES;
             float threshold = SILENCE_THRESHOLD * (inSilence ? 1.0f + SILENCE_HYSTERESIS
                                                               : 1.0f - SILENCE_HYSTERESIS);
-            if (beatDetect.vol < threshold)
+            if (analyzer.getRawVol() < threshold)
                 silenceFrames = std::min(silenceFrames + 1, SILENCE_TRIGGER_FRAMES + 1);
             else
                 silenceFrames = 0;
 
-            Spectrum spectrum;
             if (silenceFrames > SILENCE_TRIGGER_FRAMES)
             {
                 const float *bg = backgroundMusic[bgIndex % backgroundMusicSize];
@@ -325,16 +340,6 @@ int main(int argc, char *argv[])
                 spectrum.bass_att = bgBassAtt;
                 spectrum.mid_att  = bgMidAtt;
                 spectrum.treb_att = bgTrebAtt;
-            }
-            else
-            {
-                spectrum.bass     = beatDetect.bass;
-                spectrum.bass_att = beatDetect.bass_att;
-                spectrum.mid      = beatDetect.mid;
-                spectrum.mid_att  = beatDetect.mid_att;
-                spectrum.treb     = beatDetect.treb;
-                spectrum.treb_att = beatDetect.treb_att;
-                spectrum.vol      = beatDetect.vol;
             }
 
             renderer->renderFrame((float)time, &spectrum, ledData, 3*IMAGE_SIZE);

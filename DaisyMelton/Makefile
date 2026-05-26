@@ -19,6 +19,7 @@ CPP_SOURCES += ../src/Renderer.cpp
 CPP_SOURCES += ../src/Patterns.cpp
 CPP_SOURCES += ../src/MultiLayerPatterns.cpp
 CPP_SOURCES += ../src/fftsg.cpp
+CPP_SOURCES += ../src/SpectrumAnalyzer.cpp
 CPP_SOURCES += ../src/beat_data.cpp     # pre-recorded band magnitudes for the silence fallback
 
 # Include paths.  `-I.` lets shared sources in ../src/ pick up
